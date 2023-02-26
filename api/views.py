@@ -89,7 +89,7 @@ class carrierJump(APIView):
             carrier.previousLocation = None
 
             carrier.save()
-            ApiLog.objects.create(key=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jumpcancel', oldValue=carrier.currentLocation, newValue=carrier.previousLocation)
+            ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jumpcancel', oldValue=carrier.currentLocation, newValue=carrier.previousLocation)
 
             return Response({'success': 'Carrier jump cancelled'}, status=status.HTTP_200_OK)
         else:
