@@ -1,0 +1,25 @@
+name: renameBranch
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{secrets.PACKAGE_KEY}}
+      
+      - name: Find and Replace
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: 'WEBAPP_BRANCH = "BETA"'
+          replace: 'WEBAPP_BRANCH = "MAIN"'
+          regex: false
+      - name: Push
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: ${{ github.event.pull_request.title }}
+          committer_name: Ruehrstaat Development Team
+          committer_email: <>
+          author_name: Ruehrstaat Development Team
+          author_email: <>
+          commit: --signoff
