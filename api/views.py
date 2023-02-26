@@ -85,11 +85,14 @@ class carrierJump(APIView):
             return Response({'success': 'Carrier jump noted'}, status=status.HTTP_200_OK)
 
         elif request_type == 'cancel':
+            if carrier.previousLocation == None:
+                return Response({'error': 'No previous location found'}, status=status.HTTP_400_BAD_REQUEST)
+            oldValue=carrier.previousLocation
             carrier.currentLocation = carrier.previousLocation
             carrier.previousLocation = None
 
             carrier.save()
-            ApiLog.objects.create(key=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jumpcancel', oldValue=carrier.currentLocation, newValue=carrier.previousLocation)
+            ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jumpcancel', oldValue=oldValue, newValue=carrier.currentLocation)
 
             return Response({'success': 'Carrier jump cancelled'}, status=status.HTTP_200_OK)
         else:
@@ -115,8 +118,10 @@ class carrierPermission(APIView):
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
             return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
-        
+
         new_access = request.data.get('access')
+        if not new_access:
+            return Response({'error': 'No access provided'}, status=status.HTTP_400_BAD_REQUEST)
 
         ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='permission', oldValue=carrier.dockingAccess, newValue=new_access, discorduser=request_discord_id)
 
@@ -155,6 +160,7 @@ class carrierService(APIView):
         service = CarrierService.objects.get(name=serviceName)
         if not checkForWriteAccess(request, carrier_id):
             return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+
         if operation == 'activate' or operation == 'resume':
 
             ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=source, type='service-activate', oldValue=carrier.services, newValue=service, discorduser=request_discord_id)
