@@ -17,6 +17,7 @@ jobs:
           find: 'WEBAPP_BRANCH = "BETA"'
           replace: 'WEBAPP_BRANCH = "MAIN"'
           regex: false
+          include: "**settings.py"
       - name: Push
         uses: EndBug/add-and-commit@v9
         with:
