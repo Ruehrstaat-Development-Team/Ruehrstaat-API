@@ -14,7 +14,7 @@ jobs:
       - name: Find and Replace
         uses: jacobtomlinson/gha-find-replace@v3
         with:
-          find: 'WEBAPP_BRANCH = "MAIN"'
+          find: 'WEBAPP_BRANCH = "BETA"'
           replace: 'WEBAPP_BRANCH = "MAIN"'
           regex: false
       - name: Push
