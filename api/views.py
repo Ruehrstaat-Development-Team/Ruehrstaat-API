@@ -63,7 +63,7 @@ class carrierJump(APIView):
         if not carrier_id:
             return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
         if not request_type:
-            return Response({'error': 'No request type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'No type provided'}, status=status.HTTP_400_BAD_REQUEST)
         if not Carrier.objects.filter(id=carrier_id):
             return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
         carrier = Carrier.objects.get(id=carrier_id)
@@ -96,7 +96,7 @@ class carrierJump(APIView):
 
             return Response({'success': 'Carrier jump cancelled'}, status=status.HTTP_200_OK)
         else:
-            return Response({'error': 'Invalid request type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid type provided'}, status=status.HTTP_400_BAD_REQUEST)
 
 class carrierPermission(APIView):
     permission_classes = [HasAPIKey]
