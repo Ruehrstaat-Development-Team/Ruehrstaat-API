@@ -9,7 +9,7 @@ from .models import ApiKey, ApiLog
 from .auth import HasAPIKey, checkForReadAccessAll, checkForReadAccess, checkForWriteAccessAll, checkForWriteAccess
 from .serializers import CarrierSerializer, CarrierServicesSerializer
 
-from status_responses import error_400, error_401, error_403, error_404, status_200
+from .status_responses import error_400, error_401, error_403, error_404, status_200
 
 # get all registered carriers
 
