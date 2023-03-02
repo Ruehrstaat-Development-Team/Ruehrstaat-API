@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 config = ConfigParser()
 config.read('config.cfg')
 
-WEBAPP_BRANCH = "BETA"
+WEBAPP_BRANCH = "MAIN"
 WEBAPP_VERSION = "1.0.3"
 
 WEBAPP_NAME = config.get('CUSTOMIZATION', 'WEBAPP_NAME')
