@@ -20,6 +20,4 @@ def seeCarrier(request, carrier_id):
 
     return render(request, 'embeds/carrier.html', {'carrier': carrier})
 
-    
-
 

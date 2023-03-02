@@ -13,6 +13,8 @@ WEBAPP_VERSION = "1.0.2"
 
 WEBAPP_NAME = config.get('CUSTOMIZATION', 'WEBAPP_NAME')
 
+WEBAPP_DOCUMENTATION_URL = config.get('CUSTOMIZATION', 'WEBAPP_DOCUMENTATION_URL')
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config.get('GENERAL', 'SECRET_KEY')
 
