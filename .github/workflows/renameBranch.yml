@@ -14,9 +14,10 @@ jobs:
       - name: Find and Replace
         uses: jacobtomlinson/gha-find-replace@v3
         with:
-          find: 'WEBAPP_BRANCH = "MAIN"'
+          find: 'WEBAPP_BRANCH = "BETA"'
           replace: 'WEBAPP_BRANCH = "MAIN"'
           regex: false
+          include: "**settings.py"
       - name: Push
         uses: EndBug/add-and-commit@v9
         with:
