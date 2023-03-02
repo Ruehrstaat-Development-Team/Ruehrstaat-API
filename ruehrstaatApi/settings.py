@@ -8,10 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 config = ConfigParser()
 config.read('config.cfg')
 
-WEBAPP_BRANCH = "MAIN"
-WEBAPP_VERSION = "1.0.2"
+WEBAPP_BRANCH = "BETA"
+WEBAPP_VERSION = "1.0.3"
 
 WEBAPP_NAME = config.get('CUSTOMIZATION', 'WEBAPP_NAME')
+
+WEBAPP_DOCUMENTATION_URL = config.get('CUSTOMIZATION', 'WEBAPP_DOCUMENTATION_URL')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config.get('GENERAL', 'SECRET_KEY')

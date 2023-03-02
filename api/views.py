@@ -9,6 +9,8 @@ from .models import ApiKey, ApiLog
 from .auth import HasAPIKey, checkForReadAccessAll, checkForReadAccess, checkForWriteAccessAll, checkForWriteAccess
 from .serializers import CarrierSerializer, CarrierServicesSerializer
 
+from .status_responses import error_400, error_401, error_403, error_404, status_200
+
 # get all registered carriers
 
 class getAllCarriers(APIView):
@@ -29,7 +31,8 @@ class getAllServices(APIView):
 
     def get(self, request):
         if checkForReadAccessAll(request):
-            return Response({'error': 'No read access'}, status=status.HTTP_401_UNAUTHORIZED)
+            # return Response({'error': 'No read access'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(2)
         services = CarrierService.objects.all()
         serializer = CarrierServicesSerializer(services, many=True)
         return JsonResponse({'services': serializer.data}, safe=False)
@@ -40,7 +43,8 @@ class getCarrierInfo(APIView):
     def get(self, request):
         type = request.GET.get('type')
         if not type:
-            return Response({'error': 'No type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'No type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(4)
         if type == 'docking':
             # get DOCKING_ACCESS_CHOICES from carrier model
             return JsonResponse({'dockingAccess': Carrier.DOCKING_ACCESS_CHOICES}, safe=False)
@@ -48,7 +52,8 @@ class getCarrierInfo(APIView):
             # get CARRIER_CATEGORY_CHOICES from carrier model
             return JsonResponse({'carrierCategory': Carrier.CARRIER_CATEGORY_CHOICES}, safe=False)
         else:
-            return Response({'error': 'Invalid type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'Invalid type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(5)
 
 class carrierJump(APIView):
     permission_classes = [HasAPIKey]
@@ -61,20 +66,25 @@ class carrierJump(APIView):
             request_source = request.data.get('source')
 
         if not carrier_id:
-            return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(1)
         if not request_type:
-            return Response({'error': 'No request type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'No type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(4)
         if not Carrier.objects.filter(id=carrier_id):
-            return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            # return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(1)
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
-            return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            # return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(1)
         if request_type == 'jump':
             # get request json data
             body = request.data.get('body')
 
             if not body:
-                return Response({'error': 'No body provided'}, status=status.HTTP_400_BAD_REQUEST)
+                # return Response({'error': 'No body provided'}, status=status.HTTP_400_BAD_REQUEST)
+                return error_400(6)
 
             carrier.previousLocation = carrier.currentLocation
             carrier.currentLocation = body
@@ -82,11 +92,13 @@ class carrierJump(APIView):
             carrier.save()
             ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jump', oldValue=carrier.previousLocation, newValue=carrier.currentLocation)
 
-            return Response({'success': 'Carrier jump noted'}, status=status.HTTP_200_OK)
+            #return Response({'success': 'Carrier jump noted'}, status=status.HTTP_200_OK)
+            return status_200('Carrier jump noted')
 
         elif request_type == 'cancel':
             if carrier.previousLocation == None:
-                return Response({'error': 'No previous location found'}, status=status.HTTP_400_BAD_REQUEST)
+                # return Response({'error': 'No previous location found'}, status=status.HTTP_400_BAD_REQUEST)
+                return error_400(8)
             oldValue=carrier.previousLocation
             carrier.currentLocation = carrier.previousLocation
             carrier.previousLocation = None
@@ -94,9 +106,11 @@ class carrierJump(APIView):
             carrier.save()
             ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jumpcancel', oldValue=oldValue, newValue=carrier.currentLocation)
 
-            return Response({'success': 'Carrier jump cancelled'}, status=status.HTTP_200_OK)
+            # return Response({'success': 'Carrier jump cancelled'}, status=status.HTTP_200_OK)
+            return status_200('Carrier jump cancelled')
         else:
-            return Response({'error': 'Invalid request type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'Invalid type provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(5)
 
 class carrierPermission(APIView):
     permission_classes = [HasAPIKey]
@@ -112,23 +126,28 @@ class carrierPermission(APIView):
             request_discord_id = request.data.get('discord_id')
 
         if not carrier_id:
-            return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(1)
         if not Carrier.objects.filter(id=carrier_id):
-            return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(1)
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
-            return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            #return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(1)
 
         new_access = request.data.get('access')
         if not new_access:
-            return Response({'error': 'No access provided'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'No access provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(7)
 
         ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='permission', oldValue=carrier.dockingAccess, newValue=new_access, discorduser=request_discord_id)
 
         carrier.dockingAccess = new_access
         carrier.save()
         
-        return Response({'success': 'Carrier permission updated'}, status=status.HTTP_200_OK)
+        #return Response({'success': 'Carrier permission updated'}, status=status.HTTP_200_OK)
+        return status_200('Carrier permission updated')
 
 
 class carrierService(APIView):
@@ -147,19 +166,25 @@ class carrierService(APIView):
             request_discord_id = request.data.get('discord_id')
 
         if not carrier_id:
-            return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(1)
         if not operation:
-            return Response({'error': 'No operation provided'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'No operation provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(9)
         if not serviceName:
-            return Response({'error': 'No service provided'}, status=status.HTTP_400_BAD_REQUEST)
+            # return Response({'error': 'No service provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(10)
         if not Carrier.objects.filter(id=carrier_id):
-            return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            #return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(1)
         if not CarrierService.objects.filter(name=serviceName):
-            return Response({'error': 'Invalid service provided'}, status=status.HTTP_404_NOT_FOUND)
+            #return Response({'error': 'Invalid service provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(2)
         carrier = Carrier.objects.get(id=carrier_id)
         service = CarrierService.objects.get(name=serviceName)
         if not checkForWriteAccess(request, carrier_id):
-            return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            #return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(1)
 
         if operation == 'activate' or operation == 'resume':
 
@@ -167,16 +192,19 @@ class carrierService(APIView):
 
             carrier.services.add(service)
             carrier.save()
-            return Response({'success': 'Service activated'}, status=status.HTTP_200_OK)
+            #return Response({'success': 'Service activated'}, status=status.HTTP_200_OK)
+            return status_200('Service activated')
         elif operation == 'deactivate' or operation == 'pause':
 
             ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=source, type='service-deactivate', oldValue=carrier.services, newValue=service, discorduser=request_discord_id)
 
             carrier.services.remove(service)
             carrier.save()
-            return Response({'success': 'Service deactivated'}, status=status.HTTP_200_OK)
+            #return Response({'success': 'Service deactivated'}, status=status.HTTP_200_OK)
+            return status_200('Service deactivated')
         else:
-            return Response({'error': 'Invalid operation provided'}, status=status.HTTP_404_NOT_FOUND)
+            #return Response({'error': 'Invalid operation provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(3)
         
 
 
@@ -189,15 +217,18 @@ class carrier(APIView):
         carrier_id = request.GET.get('id')
         carrier_callsign = request.GET.get('callsign')
         if not carrier_id and not carrier_callsign:
-            return Response({'error': 'No carrier id or callsign provided'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'No carrier id or callsign provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(2)
         if not Carrier.objects.filter(id=carrier_id) and not Carrier.objects.filter(callsign=carrier_callsign):
-            return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            #return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(1)
         carrier = Carrier.objects.get(id=carrier_id)
         if not carrier:
             carrier = Carrier.objects.get(callsign=carrier_callsign)
             carrier_id = carrier.id
         if not checkForReadAccess(request, carrier_id):
-            return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            #return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(1)
         serializer = CarrierSerializer(carrier)
         return JsonResponse({'carrier': serializer.data}, safe=False)
 
@@ -212,11 +243,13 @@ class carrier(APIView):
             request_discord_id = request.data.get('discord_id')
         if carrier_id:
             if not Carrier.objects.filter(id=carrier_id):
-                return Response({'error': 'Invalid carrier id provided, to create a carrier please use POST request'}, status=status.HTTP_400_BAD_REQUEST)
+                #return Response({'error': 'Invalid carrier id provided, to create a carrier please use POST request'}, status=status.HTTP_400_BAD_REQUEST)
+                return error_400(3)
             carrier = Carrier.objects.get(id=carrier_id)
             # check for access to carrier
             if not checkForWriteAccess(request, carrier_id):
-                return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+                #return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+                return error_401(1)
 
             changes = {}
             old_values = {}
@@ -266,13 +299,16 @@ class carrier(APIView):
 
             return Response({'carrier': serializer.data}, status=status.HTTP_200_OK)
         else:
-            return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(1)
 
     def post(self, request):
         if request.data.get('id'):
-            return Response({'error': 'Use PUT request to edit carrier'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'Use PUT request to edit carrier'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(11)
         if not checkForWriteAccess(request, None):
-            return Response({'error': 'Not allowed to create new carriers'}, status=status.HTTP_401_UNAUTHORIZED)
+            #return Response({'error': 'Not allowed to create new carriers'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(3)
         serializer = CarrierSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -286,12 +322,15 @@ class carrier(APIView):
             request_source = request.GET.get('source')
         
         if not carrier_id:
-            return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            #return Response({'error': 'No carrier id provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_400(1)
         if not Carrier.objects.filter(id=carrier_id):
-            return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            #return Response({'error': 'Invalid carrier id provided'}, status=status.HTTP_404_NOT_FOUND)
+            return error_404(1)
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
-            return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            #return Response({'error': 'Carrier not allowed'}, status=status.HTTP_401_UNAUTHORIZED)
+            return error_401(1)
 
         ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='carrier-delete', oldValue=carrier, newValue=None)
         
