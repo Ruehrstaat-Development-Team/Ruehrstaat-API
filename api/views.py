@@ -8,8 +8,10 @@ from carriers.models import Carrier, CarrierService
 from .models import ApiKey, ApiLog
 from .auth import HasAPIKey, checkForReadAccessAll, checkForReadAccess, checkForWriteAccessAll, checkForWriteAccess
 from .serializers import CarrierSerializer, CarrierServicesSerializer
+from .serializers import APIgetCarrierInfoSerializer, APIcarrierJumpSerializer, APIcarrierPermissionSerializer, APIcarrierServiceSerializer
 
 from .status_responses import error_400, error_401, error_403, error_404, status_200
+from .exceptions import ValidationException
 
 # get all registered carriers
 
@@ -31,46 +33,42 @@ class getAllServices(APIView):
 class getCarrierInfo(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
-        type = request.GET.get('type')
-        if not type:
-            return error_400(4)
+        serializer = APIgetCarrierInfoSerializer(data=request.GET)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationException as e:
+            return e.response
+        type = serializer.validated_data['type']
         match type:
             case 'docking':
                 return JsonResponse({'dockingAccess': Carrier.DOCKING_ACCESS_CHOICES}, safe=False)
             case 'category':
                 return JsonResponse({'carrierCategory': Carrier.CARRIER_CATEGORY_CHOICES}, safe=False)
-            case _:
-                return error_400(5)
 
 class carrierJump(APIView):
     permission_classes = [HasAPIKey]
     def put(self, request):
-        carrier_id = request.data.get('id')
-        request_type = request.data.get('type')
-        request_source = "other"
-        if request.data.get('source'):
-            request_source = request.data.get('source')
-
-        if not carrier_id:
-            return error_400(1)
-        if not request_type:
-            return error_400(4)
-        if not Carrier.objects.filter(id=carrier_id):
-            return error_404(1)
+        serializer = APIcarrierJumpSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationException as e:
+            return e.response
+        carrier_id = serializer.validated_data['id']
+        request_type = serializer.validated_data['type']
+        request_source = serializer.validated_data['source']
         carrier = Carrier.objects.get(id=carrier_id)
+        body = serializer.validated_data['body']
+
         if not checkForWriteAccess(request, carrier_id):
             return error_401(1)
+
         match request_type:
             case 'jump':
-                body = request.data.get('body')
-                if not body:
-                    return error_400(6)
                 carrier.previousLocation = carrier.currentLocation
                 carrier.currentLocation = body
                 carrier.save()
                 ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='jump', oldValue=carrier.previousLocation, newValue=carrier.currentLocation)
                 return status_200('Carrier jump noted')
-
             case 'cancel':
                 if carrier.previousLocation == None:
                     return error_400(8)
@@ -86,24 +84,19 @@ class carrierJump(APIView):
 class carrierPermission(APIView):
     permission_classes = [HasAPIKey]
     def put(self, request):
-        carrier_id = request.data.get('id')
-        request_source = "other"
-        if request.data.get('source'):
-            request_source = request.data.get('source')
-        request_discord_id = None
-        if request.data.get('discord_id'):
-            request_discord_id = request.data.get('discord_id')
-        if not carrier_id:
-            return error_400(1)
-        if not Carrier.objects.filter(id=carrier_id):
-            return error_404(1)
+        serializer = APIcarrierPermissionSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationException as e:
+            return e.response
+        carrier_id = serializer.validated_data['id']
+        request_source = serializer.validated_data['source']
+        request_discord_id = serializer.validated_data['discord_id']
+        new_access = serializer.validated_data['access']
+
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
             return error_401(1)
-
-        new_access = request.data.get('access')
-        if not new_access:
-            return error_400(7)
 
         ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='permission', oldValue=carrier.dockingAccess, newValue=new_access, discorduser=request_discord_id)
         carrier.dockingAccess = new_access
@@ -114,28 +107,21 @@ class carrierPermission(APIView):
 class carrierService(APIView):
     permission_classes = [HasAPIKey]
     def put(self, request):
-        carrier_id = request.data.get('id')
-        operation = request.data.get('operation').lower()
-        serviceName = request.data.get('service')
-        source = "other"
-        if request.data.get('source'):
-            source = request.data.get('source')
-        request_discord_id = None
-        if request.data.get('discord_id'):
-            request_discord_id = request.data.get('discord_id')
+        serializer = APIcarrierServiceSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationException as e:
+            return e.response
+        
+        carrier_id = serializer.validated_data['id']
+        operation = serializer.validated_data['operation'].lower()
+        serviceName = serializer.validated_data['service']
+        source = serializer.validated_data['source']
+        request_discord_id = serializer.validated_data['discord_id']
 
-        if not carrier_id:
-            return error_400(1)
-        if not operation:
-            return error_400(9)
-        if not serviceName:
-            return error_400(10)
-        if not Carrier.objects.filter(id=carrier_id):
-            return error_404(1)
-        if not CarrierService.objects.filter(name=serviceName):
-            return error_404(2)
         carrier = Carrier.objects.get(id=carrier_id)
         service = CarrierService.objects.get(name=serviceName)
+
         if not checkForWriteAccess(request, carrier_id):
             return error_401(1)
 

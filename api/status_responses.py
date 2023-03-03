@@ -17,6 +17,8 @@ def error_400(exception_number):
     9 - No operation provided
     10 - No service provided
     11 - Carrier id provided, use PUT request to edit carrier
+    12 - Invalid access provided
+    13 - Invalid operation provided
     """
     data = {}
     match exception_number:
@@ -53,6 +55,12 @@ def error_400(exception_number):
         case 11:
             data["error"] = "Carrier id provided, use PUT request to edit carrier"
             data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=carrier-id-provided-use-put-request-to-edit-carrier"
+        case 12:
+            data["error"] = "Invalid access provided"
+            data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=invalid-access-provided"
+        case 13:
+            data["error"] = "Invalid operation provided"
+            data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=invalid-operation-provided"
         case _:
             data["error"] = "Unknown error"
             data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=_400-bad-request"
@@ -104,7 +112,7 @@ def error_404(exception_number):
     :param exception_number: The number of the exception as int, see below:
     1 - Invalid carrier id provided
     2 - Invalid carrier service provided
-    3 - Invalid operation provided"""
+    """
     data = {}
     match exception_number:
         case 1:
@@ -113,9 +121,6 @@ def error_404(exception_number):
         case 2:
             data["error"] = "Invalid carrier service provided"
             data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=invalid-carrier-service-provided"
-        case 3:
-            data["error"] = "Invalid operation provided"
-            data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=invalid-operation-provided"
         case _:
             data["error"] = "Unknown error"
             data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=_404-not-found"
