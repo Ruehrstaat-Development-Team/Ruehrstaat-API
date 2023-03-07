@@ -1,6 +1,5 @@
 from pathlib import Path
 from configparser import ConfigParser
-import json
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -8,8 +7,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 config = ConfigParser()
 config.read('config.cfg')
 
-WEBAPP_BRANCH = "MAIN"
-WEBAPP_VERSION = "1.0.3"
+WEBAPP_BRANCH = "BETA"
+WEBAPP_VERSION = "1.0.4"
 
 WEBAPP_NAME = config.get('CUSTOMIZATION', 'WEBAPP_NAME')
 
@@ -33,6 +32,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
+    'django_otp.plugins.otp_static',
     'crispy_forms',
     'rest_framework',
     'rest_framework_api_key',
@@ -47,6 +49,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -157,6 +160,6 @@ SESSION_COOKIE_SECURE = bool(int(config.get('HTTPS', 'session_cookie_secure')))
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-    )
+    ),
 }
 

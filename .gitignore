@@ -137,3 +137,5 @@ test.txt
 #Stuff
 config.cfg
 *.ini
+
+.fleet/
