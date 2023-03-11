@@ -18,7 +18,7 @@ class ApiKey(AbstractAPIKey):
 #add a model for logging changes made using the api
 class ApiLog(models.Model):
     #user that made the change
-    user = models.ForeignKey(ApiKey, on_delete=models.CASCADE)
+    user = models.ForeignKey(ApiKey, on_delete=models.SET_NULL, null=True, blank=True)
     #carrier that was changed
     carrier = models.ForeignKey(Carrier, on_delete=models.CASCADE)
     #time of change
