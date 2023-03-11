@@ -18,15 +18,14 @@ from .exceptions import ValidationException
 class getAllCarriers(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
-        access_carrier_ids = checkForReadAccessAll(request)
-        if not access_carrier_ids:
+        if not checkForReadAccessAll(request):
             return error_401(2)
         return JsonResponse({'carriers': CarrierSerializer(Carrier.objects.all().filter(id__in=access_carrier_ids), many=True).data}, safe=False)
 
 class getAllServices(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
-        if checkForReadAccessAll(request):
+        if not checkForReadAccessAll(request):
             return error_401(2)
         return JsonResponse({'services': CarrierServicesSerializer(CarrierService.objects.all(), many=True).data}, safe=False)
 
