@@ -19,6 +19,8 @@ def error_400(exception_number):
     11 - Carrier id provided, use PUT request to edit carrier
     12 - Invalid access provided
     13 - Invalid operation provided
+    14 - No timestamp provided
+    15 - Invalid timestamp provided
     """
     data = {}
     match exception_number:
@@ -61,6 +63,12 @@ def error_400(exception_number):
         case 13:
             data["error"] = "Invalid operation provided"
             data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=invalid-operation-provided"
+        case 14:
+            data["error"] = "No timestamp provided"
+            data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=no-timestamp-provided"
+        case 15:
+            data["error"] = "Invalid timestamp provided"
+            data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=invalid-timestamp-provided"
         case _:
             data["error"] = "Unknown error"
             data["reference"] = settings.WEBAPP_DOCUMENTATION_URL + "/#/api/errors/?id=_400-bad-request"

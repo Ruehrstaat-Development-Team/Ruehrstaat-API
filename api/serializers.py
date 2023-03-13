@@ -104,6 +104,13 @@ class APIcarrierServiceSerializer(APISerializer):
         "discord_id": {"class": str, "required": {"value": False}, "default": None},
     }
 
+class APIcarrierHEADSerializer(APISerializer):
+    values = {
+        "id": {"class": str, "required": {"value": True, "errorNumber": 1}, "object": {"value": Carrier, "errorNumber": 1, "field": "id"}},
+        "timestamp": {"class": str, "required": {"value": True, "errorNumber": 14}},
+        "source": {"class": str, "required": {"value": False}, "default": "other"}
+    }
+
 
     
 
