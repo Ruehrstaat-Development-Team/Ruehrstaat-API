@@ -13,6 +13,9 @@ class CarrierService(models.Model):
     # mark as odyssey only
     odyssey = models.BooleanField(default=False)
 
+    date_modified = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
         return self.label
 
@@ -50,6 +53,9 @@ class Carrier(models.Model):
         ('other', 'Other'),
     ]
     category = models.CharField(max_length=255, choices=CARRIER_CATEGORY_CHOICES, default='other')
+
+    date_modified = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name

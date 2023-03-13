@@ -9,9 +9,13 @@ from .models import ApiKey, ApiLog
 from .auth import HasAPIKey, checkForReadAccessAll, checkForReadAccess, checkForWriteAccessAll, checkForWriteAccess
 from .serializers import CarrierSerializer, CarrierServicesSerializer
 from .serializers import APIgetCarrierInfoSerializer, APIcarrierJumpSerializer, APIcarrierPermissionSerializer, APIcarrierServiceSerializer
+from .serializers import APIcarrierHEADSerializer
 
 from .status_responses import error_400, error_401, error_403, error_404, status_200
 from .exceptions import ValidationException
+
+from datetime import datetime
+from django.utils import timezone
 
 # get all registered carriers
 
@@ -252,11 +256,40 @@ class carrier(APIView):
         ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='carrier-delete', oldValue=carrier, newValue=None)
         carrier.delete()
         return Response({'success': 'carrier successfully deleted'}, status=status.HTTP_204_NO_CONTENT)
-            
+    
+    # HEAD request to check if carrier has been modified since last request (for caching)
+    def head(self, request):
+        serializer = APIcarrierHEADSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationException as e:
+            return e.response
+        
+        carrier_id = serializer.validated_data['id']
+        timestamp = serializer.validated_data['timestamp']
+        source = serializer.validated_data['source']
 
-                
-                
+        # try to convert timestamp to int
+        try:
+            timestamp = timezone.make_aware(datetime.fromtimestamp(int(timestamp)), timezone.get_current_timezone())
+        except ValueError:
+            # check if timestamp is maybe a string in iso format
+            try:
+                timestamp = datetime.fromisoformat(timestamp)
+            except ValueError:
+                return error_400(15)
 
+        carrier = Carrier.objects.get(id=carrier_id)
+        if not checkForReadAccess(request, carrier_id):
+            return error_401(1)
+        
+        ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=source, type='carrier-head', oldValue=None, newValue=None)
 
+        # check if carrier has been modified since last request
+        if carrier.date_modified > timestamp:
+            return Response(status=status.HTTP_200_OK)
+        else:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+        
 
 
