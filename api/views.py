@@ -259,7 +259,7 @@ class carrier(APIView):
     
     # HEAD request to check if carrier has been modified since last request (for caching)
     def head(self, request):
-        serializer = APIcarrierHEADSerializer(data=request.data)
+        serializer = APIcarrierHEADSerializer(data=request.GET)
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationException as e:
