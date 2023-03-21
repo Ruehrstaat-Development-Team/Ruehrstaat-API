@@ -8,7 +8,7 @@ config = ConfigParser()
 config.read('config.cfg')
 
 WEBAPP_BRANCH = "BETA"
-WEBAPP_VERSION = "1.0.6"
+WEBAPP_VERSION = "1.1.0"
 
 WEBAPP_NAME = config.get('CUSTOMIZATION', 'WEBAPP_NAME')
 
@@ -32,15 +32,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_otp',
-    'django_otp.plugins.otp_totp',
-    'django_otp.plugins.otp_static',
     'crispy_forms',
     'rest_framework',
     'rest_framework_api_key',
+    'backend.apps.BackendConfig',
     'carriers.apps.CarriersConfig',
     'api.apps.ApiConfig',
     'embeds.apps.EmbedsConfig',
+    'webinterface.apps.WebinterfaceConfig',
 ]
 
 MIDDLEWARE = [
@@ -49,7 +48,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -76,6 +74,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'ruehrstaatApi.wsgi.application'
+
+AUTH_USER_MODEL = 'backend.User'
+
+# change authentication backend
+AUTHENTICATION_BACKENDS = [
+    'backend.auth.DiscordBackend',
+]
 
 
 # Database
@@ -162,3 +167,8 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
 }
+
+# Dicord Authentication Settings
+
+DISCORD_CLIENT_ID = config.get('DISCORDLOGIN', 'client_id')
+DISCORD_CLIENT_SECRET = config.get('DISCORDLOGIN', 'client_secret')

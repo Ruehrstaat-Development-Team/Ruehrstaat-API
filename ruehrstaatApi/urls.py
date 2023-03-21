@@ -16,12 +16,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from django_otp.admin import OTPAdminSite
+from backend.views import discord_login, login_page
 
 urlpatterns = [
+    path('', include('webinterface.urls')),
     path('api/v1/', include('api.urls')),
     path('embeds/', include('embeds.urls')),
+    path('auth/', include('backend.urls')),
+    path('admin/login/', discord_login, name="discord_login"),
+    path('login/', login_page, name="login_page"),
     path('admin/', admin.site.urls),
 ]
-
-admin.site.__class__ = OTPAdminSite
