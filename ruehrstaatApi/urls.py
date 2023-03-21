@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from backend.views import discord_login, login_page
+from backend.views import discord_login, login_page, logout_page
 
 urlpatterns = [
     path('', include('webinterface.urls')),
@@ -25,5 +25,6 @@ urlpatterns = [
     path('auth/', include('backend.urls')),
     path('admin/login/', discord_login, name="discord_login"),
     path('login/', login_page, name="login_page"),
+    path('logout/', logout_page, name="logout_page"),
     path('admin/', admin.site.urls),
 ]

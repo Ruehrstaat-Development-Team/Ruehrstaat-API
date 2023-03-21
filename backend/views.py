@@ -3,7 +3,7 @@ from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 
 from .helpers import get_discord_auth_url, exchange_discord_code
 
@@ -30,3 +30,7 @@ def discord_login_redirect(request: HttpRequest):
 def login_page(request: HttpRequest):
     # display simple page with button that redirects to discord login
     return render(request, "login.html")
+
+def logout_page(request: HttpRequest):
+    logout(request)
+    return redirect("/login")
