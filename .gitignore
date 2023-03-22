@@ -135,7 +135,7 @@ test.txt
 
 
 #Stuff
-config.cfg
+*.cfg
 *.ini
 
 .fleet/
