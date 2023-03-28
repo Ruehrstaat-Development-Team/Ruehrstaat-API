@@ -99,6 +99,7 @@ class carrierPermission(APIView):
         request_source = serializer.validated_data['source']
         request_discord_id = serializer.validated_data['discord_id']
         new_access = serializer.validated_data['access']
+        allowNotorious = serializer.validated_data['notorious']
 
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
@@ -106,6 +107,7 @@ class carrierPermission(APIView):
 
         ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='permission', oldValue=carrier.dockingAccess, newValue=new_access, discorduser=request_discord_id)
         carrier.dockingAccess = new_access
+        carrier.allowNotorious = allowNotorious
         carrier.save()
         return status_200('Carrier permission updated')
 
@@ -174,61 +176,107 @@ class carrier(APIView):
         request_discord_id = None
         if request.data.get('discord_id'):
             request_discord_id = request.data.get('discord_id')
-        if carrier_id:
-            if not Carrier.objects.filter(id=carrier_id):
-                return error_400(3)
-            carrier = Carrier.objects.get(id=carrier_id)
-            if not checkForWriteAccess(request, carrier_id):
-                return error_401(1)
+        if not carrier_id:
+            return error_400(1)
+        if not Carrier.objects.filter(id=carrier_id):
+            return error_400(3)
+        carrier = Carrier.objects.get(id=carrier_id)
+        if not checkForWriteAccess(request, carrier_id):
+            return error_401(1)
 
-            changes = {}
-            old_values = {}
+        editsMade = False
+        changes = {}
+        old_values = {}
 
-            if request.data.get('name'):
-                old_values['name'] = carrier.name
-                carrier.name = request.data.get('name')
-                changes['name'] = request.data.get('name')
-            if request.data.get('callsign'):
-                old_values['callsign'] = carrier.callsign   
-                carrier.callsign = request.data.get('callsign')
-                changes['callsign'] = request.data.get('callsign')
-            if request.data.get('currentLocation'):
-                old_values['currentLocation'] = carrier.currentLocation
-                carrier.currentLocation = request.data.get('currentLocation')
-                changes['currentLocation'] = request.data.get('currentLocation')
-            if request.data.get('previousLocation'):
-                old_values['previousLocation'] = carrier.previousLocation
-                carrier.previousLocation = request.data.get('previousLocation')
-                changes['previousLocation'] = request.data.get('previousLocation')
-            if request.data.get('dockingAccess'):
-                old_values['dockingAccess'] = carrier.dockingAccess
-                carrier.dockingAccess = request.data.get('dockingAccess')
-                changes['dockingAccess'] = request.data.get('dockingAccess')
-            if request.data.get('owner'):
-                old_values['owner'] = carrier.owner
-                carrier.owner = request.data.get('owner')
-                changes['owner'] = request.data.get('owner')
-            if request.data.get('ownerDiscordID'):
-                old_values['ownerDiscordID'] = carrier.ownerDiscordID
-                carrier.ownerDiscordID = request.data.get('ownerDiscordID')
-                changes['ownerDiscordID'] = request.data.get('ownerDiscordID')
-            if request.data.get('imageURL'):
-                old_values['imageURL'] = carrier.imageURL
-                carrier.imageURL = request.data.get('imageURL')
-                changes['imageURL'] = request.data.get('imageURL')
-            if request.data.get('category'):
-                old_values['category'] = carrier.category
-                carrier.category = request.data.get('category')
-                changes['category'] = request.data.get('category')
+        if request.data.get('name'):
+            old_values['name'] = carrier.name
+            carrier.name = request.data.get('name')
+            changes['name'] = request.data.get('name')
+            editsMade = True
+        if request.data.get('callsign'):
+            old_values['callsign'] = carrier.callsign   
+            carrier.callsign = request.data.get('callsign')
+            changes['callsign'] = request.data.get('callsign')
+            editsMade = True
+        if request.data.get('currentLocation'):
+            old_values['currentLocation'] = carrier.currentLocation
+            carrier.currentLocation = request.data.get('currentLocation')
+            changes['currentLocation'] = request.data.get('currentLocation')
+            editsMade = True
+        if request.data.get('previousLocation'):
+            old_values['previousLocation'] = carrier.previousLocation
+            carrier.previousLocation = request.data.get('previousLocation')
+            changes['previousLocation'] = request.data.get('previousLocation')
+            editsMade = True
+        if request.data.get('dockingAccess'):
+            old_values['dockingAccess'] = carrier.dockingAccess
+            carrier.dockingAccess = request.data.get('dockingAccess')
+            changes['dockingAccess'] = request.data.get('dockingAccess')
+            editsMade = True
+        if request.data.get('notorious'):
+            old_values['notorious'] = carrier.allowNotorious
+            carrier.allowNotorious = request.data.get('notorious')
+            changes['allowNotorious'] = request.data.get('notorious')
+            editsMade = True
+        if request.data.get('fuel'):
+            old_values['fuel'] = carrier.fuelLevel
+            carrier.fuelLevel = request.data.get('fuel')
+            changes['fuelLevel'] = request.data.get('fuel')
+            editsMade = True
+        if request.data.get('cargoUsed'):
+            old_values['cargoUsedSpace'] = carrier.cargoUsedSpace
+            carrier.cargoUsedSpace = request.data.get('cargoUsed')
+            changes['cargoUsedSpace'] = request.data.get('cargoUsed')
+            editsMade = True
+        if request.data.get('cargoFree'):
+            old_values['cargoFreeSpace'] = carrier.cargoFreeSpace
+            carrier.cargoFreeSpace = request.data.get('cargoFree')
+            changes['cargoFreeSpace'] = request.data.get('cargoFree')
+            editsMade = True
+        if request.data.get('balance'):
+            old_values['balance'] = carrier.balance
+            carrier.balance = request.data.get('balance')
+            changes['balance'] = request.data.get('balance')
+            editsMade = True
+        if request.data.get('reserveBalance'):
+            old_values['reserveBalance'] = carrier.reserveBalance
+            carrier.reserveBalance = request.data.get('reserveBalance')
+            changes['reserveBalance'] = request.data.get('reserveBalance')
+            editsMade = True
+        if request.data.get('availableBalance'):
+            old_values['availableBalance'] = carrier.availableBalance
+            carrier.availableBalance = request.data.get('availableBalance')
+            changes['availableBalance'] = request.data.get('availableBalance')
+            editsMade = True
+        if request.data.get('owner'):
+            old_values['owner'] = carrier.owner
+            carrier.owner = request.data.get('owner')
+            changes['owner'] = request.data.get('owner')
+            editsMade = True
+        if request.data.get('ownerDiscordID'):
+            old_values['ownerDiscordID'] = carrier.ownerDiscordID
+            carrier.ownerDiscordID = request.data.get('ownerDiscordID')
+            changes['ownerDiscordID'] = request.data.get('ownerDiscordID')
+            editsMade = True
+        if request.data.get('imageURL'):
+            old_values['imageURL'] = carrier.imageURL
+            carrier.imageURL = request.data.get('imageURL')
+            changes['imageURL'] = request.data.get('imageURL')
+            editsMade = True
+        if request.data.get('category'):
+            old_values['category'] = carrier.category
+            carrier.category = request.data.get('category')
+            changes['category'] = request.data.get('category')
+            editsMade = True
 
+        if editsMade:
             ApiLog.objects.create(user=ApiKey.objects.get_from_key(request.META["HTTP_AUTHORIZATION"].split()[1]), carrier=carrier, source=request_source, type='carrier-update', oldValue=old_values, newValue=changes, discorduser=request_discord_id)
 
             carrier.save()
             serializer = CarrierSerializer(carrier)
 
-            return Response({'carrier': serializer.data}, status=status.HTTP_200_OK)
-        else:
-            return error_400(1)
+        return Response({'carrier': serializer.data}, status=status.HTTP_200_OK)
+            
 
     def post(self, request):
         if request.data.get('id'):

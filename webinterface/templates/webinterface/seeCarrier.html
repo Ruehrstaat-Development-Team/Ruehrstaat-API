@@ -1,0 +1,78 @@
+{% extends 'webinterface/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Ruehrstaat Webinterface{% endblock %}
+
+{% block page_title %}
+    <!-- center div -->
+    <div class="container text-center">
+        <h1>Ruehrstaat Webinterface </h1>
+        <h2>See Carrier {{carrier.name}}</h5>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <br>
+    <!-- edit carrier button -->
+    <div class="container text-center">
+        <a href="/" class="btn btn-primary">Back to Overview</a>
+        <a href="/editCarrier/{{carrier.id}}" class="btn btn-primary">Edit Carrier</a>
+    </div>
+    <br>
+    <!-- carrier info -->
+
+    <!-- carrier Name -->
+    <div class="container text-center">
+        <h3>Carrier Name: {{carrier.name}}</h3>
+        <h4>Carrier Callsign: {{carrier.callsign}}</h4>
+    </div>
+    <br>
+    <h3 class="container text-center">Location</h3>
+    <div class="container text-center">
+        <h6>Current Location: {{carrier.currentLocation}}</h6>
+        <h6>Previous Location: {{carrier.previousLocation}}</h6>
+    </div>
+    <br>
+    <h3 class="container text-center">Docking Status</h3>
+    <div class="container text-center">
+        <h6>Docking Access: {{carrier.dockingAccess}}</h6>
+        <h6>Allow Notorious: {{carrier.allowNotorious}}</h6>
+    </div> 
+    <br>
+    <h3 class="container text-center">Carrier Cargo</h3>
+    <div class="container text-center">
+        <h6>Cargo Used Space: {{carrier.cargoUsedSpace}}</h6>
+        <h6>Cargo Free Space: {{carrier.cargoFreeSpace}}</h6>
+    </div>
+    <br>
+    <h3 class="container text-center">Carrier Fuel</h3>
+    <div class="container text-center">
+        <h6>Fuel Level: {{carrier.fuelLevel}}</h6>
+    </div>
+    <br>
+    <h3 class="container text-center">Carrier Finances</h3>
+    <div class="container text-center">
+        <h6>Balance: {{carrier.balance}}</h6>
+        <h6>Reserve Balance: {{carrier.reserveBalance}}</h6>
+        <h6>Available Balance: {{carrier.availableBalance}}</h6>
+    </div>
+
+    <br>
+    <h3 class="container text-center">Carrier Services</h3>
+    <div class="container text-center">
+        {% for service in carrier.services.all %}
+            {{service.name}}{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+    </div>
+    <br>
+    <h3 class="container text-center">Carrier Category</h3>
+    <div class="container text-center">
+        <h6>Category: {{carrier.category}}</h6>
+    </div>
+    <br>
+    <h3 class="container text-center">Carrier Owner</h3>
+    <div class="container text-center">
+        <h6>Owner: {{carrier.owner}}</h6>
+        <h6>Owner Discord ID: {{carrier.ownerDiscordID}}</h6>
+    </div>
+{% endblock %}
+

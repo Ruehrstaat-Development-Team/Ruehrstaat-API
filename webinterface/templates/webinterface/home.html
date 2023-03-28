@@ -27,7 +27,7 @@
                             <th scope="col">Services</th>
                             <th scope="col">dockingAccess</th>
                             <th scope="col">Category</th>
-                            <th scope="col">Edit</th>
+                            <th scope="col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -39,14 +39,13 @@
                             <td>{{carrier.previousLocation}}</td>
                             <td><!-- got through carrier.services.all table and list names comma seperated-->
                                 {% for service in carrier.services.all %}
-                                    {{service.name}}
-                                    {% if not forloop.last %}, {% endif %}
+                                    {{service.name}}{% if not forloop.last %}, {% endif %}
                                 {% endfor %}
                             </td>
                             <td>{{carrier.dockingAccess}}</td>
                             <td>{{carrier.category}}</td>
                             <td>
-                                <a href="/editCarrier/{{carrier.id}}" class="btn btn-primary">Edit</a>
+                                <a href="/seeCarrier/{{carrier.id}}" class="btn btn-primary">View</a>
                             </td>
                         </tr>
                         {% endfor %}

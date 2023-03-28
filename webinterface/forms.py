@@ -25,3 +25,4 @@ class EditCarrierForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'darkTextArea'}),
         }
 
+
