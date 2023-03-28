@@ -4,6 +4,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 PERCENTAGE_VALIDATOR = [MinValueValidator(0), MaxValueValidator(100)]
 
+FUEL_VALIDATOR = [MinValueValidator(0), MaxValueValidator(1000)]
+
 # Create your models here.
 
 class CarrierService(models.Model):
@@ -41,7 +43,7 @@ class Carrier(models.Model):
     dockingAccess = models.CharField(max_length=255, choices=DOCKING_ACCESS_CHOICES, default='all')
     allowNotorious = models.BooleanField(default=False)
 
-    fuelLevel = models.IntegerField(validators=PERCENTAGE_VALIDATOR, default=100)
+    fuelLevel = models.IntegerField(validators=FUEL_VALIDATOR, default=500)
 
     cargoUsedSpace = models.IntegerField(default=0)
     cargoFreeSpace = models.IntegerField(default=0)
