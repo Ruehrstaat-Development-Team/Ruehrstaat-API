@@ -12,7 +12,7 @@ class CarrierSerializer(serializers.ModelSerializer):
     services = CarrierServicesSerializer(many=True, read_only=True)
     class Meta:
         model = Carrier
-        fields = ['id', 'name', 'callsign', 'currentLocation', 'previousLocation', 'dockingAccess', 'services', 'owner', 'ownerDiscordID', 'imageURL', 'category']
+        fields = ['id', 'name', 'callsign', 'currentLocation', 'previousLocation', 'dockingAccess', 'allowNotorious', 'fuelLevel', 'cargoUsedSpace', 'cargoFreeSpace', 'balance', 'reserveBalance', 'availableBalance', 'services', 'owner', 'ownerDiscordID', 'imageURL', 'category']
 
 from .exceptions import Validation400Exception, Validation401Exception, Validation403Exception, Validation404Exception
 

@@ -36,6 +36,6 @@ class ApiLog(models.Model):
     #discorduser
     discorduser = models.CharField(max_length=100, default=None, null=True, blank=True)
     #old value
-    oldValue = models.CharField(max_length=100, default=None, null=True, blank=True)
+    oldValue = models.TextField(max_length=1000000, default=None, null=True, blank=True)
     #new value
-    newValue = models.CharField(max_length=100, default=None, null=True, blank=True)
+    newValue = models.TextField(max_length=1000000, default=None, null=True, blank=True)

@@ -99,7 +99,7 @@ class carrierPermission(APIView):
         request_source = serializer.validated_data['source']
         request_discord_id = serializer.validated_data['discord_id']
         new_access = serializer.validated_data['access']
-        allowNotorious = serializer.validated_data['notorious']
+        allowNotorious = bool(serializer.validated_data['notorious'])
 
         carrier = Carrier.objects.get(id=carrier_id)
         if not checkForWriteAccess(request, carrier_id):
@@ -215,8 +215,8 @@ class carrier(APIView):
             editsMade = True
         if request.data.get('notorious'):
             old_values['notorious'] = carrier.allowNotorious
-            carrier.allowNotorious = request.data.get('notorious')
-            changes['allowNotorious'] = request.data.get('notorious')
+            carrier.allowNotorious = bool(request.data.get('notorious'))
+            changes['allowNotorious'] = bool(request.data.get('notorious'))
             editsMade = True
         if request.data.get('fuel'):
             old_values['fuel'] = carrier.fuelLevel
