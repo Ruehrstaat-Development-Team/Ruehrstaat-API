@@ -39,6 +39,17 @@ class Carrier(models.Model):
         ('squadronfriends', 'Squadron & Friends'),
     ]
     dockingAccess = models.CharField(max_length=255, choices=DOCKING_ACCESS_CHOICES, default='all')
+    allowNotorious = models.BooleanField(default=False)
+
+    fuelLevel = models.IntegerField(validators=PERCENTAGE_VALIDATOR, default=100)
+
+    cargoUsedSpace = models.IntegerField(default=0)
+    cargoFreeSpace = models.IntegerField(default=0)
+
+    # finances
+    balance = models.BigIntegerField(default=0)
+    reserveBalance = models.BigIntegerField(default=0)
+    availableBalance = models.BigIntegerField(default=0)
 
     owner = models.CharField(max_length=255, null=False, blank=False)
     ownerDiscordID = models.BigIntegerField(null=True, blank=True)

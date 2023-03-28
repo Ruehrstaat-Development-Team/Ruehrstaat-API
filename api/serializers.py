@@ -91,6 +91,7 @@ class APIcarrierPermissionSerializer(APISerializer):
     values = {
         "id": {"class": str, "required": {"value": True, "errorNumber": 1}, "object": {"value": Carrier, "errorNumber": 1, "field": "id"}},
         "access": {"class": str, "required": {"value": True, "errorNumber": 7}, "choices": {"value": [x[0] for x in Carrier.DOCKING_ACCESS_CHOICES], "errorNumber": 12}},
+        "notorious": {"class": bool, "required": {"value": False}, "default": True},
         "source": {"class": str, "required": {"value": False}, "default": "other"},
         "discord_id": {"class": str, "required": {"value": False}, "default": None},
     }
