@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from carriers.models import Carrier, CarrierService
 
 from .forms import EditCarrierForm
+from backend.models import User
 
 @login_required(login_url="/auth/login")
 def home(request: HttpRequest):
@@ -12,7 +13,8 @@ def home(request: HttpRequest):
     if request.user.is_superuser:
         carriers = Carrier.objects.all()
     else:
-        carriers = Carrier.objects.filter(ownerDiscordID=request.user.id)
+        user = User.objects.get(id=request.user.id)
+        carriers = Carrier.objects.filter(ownerDiscordID=user.discord_data.id)
     for carrier in carriers:
         for docking in Carrier.DOCKING_ACCESS_CHOICES:
             if carrier.dockingAccess == docking[0]:
@@ -25,7 +27,8 @@ def home(request: HttpRequest):
 @login_required(login_url="/auth/login")
 def editCarrier(request: HttpRequest, carrierID: int):
     carrier = Carrier.objects.get(id=carrierID)
-    if carrier.ownerDiscordID != request.user.id and not request.user.is_superuser:
+    user = User.objects.get(id=request.user.id)
+    if carrier.ownerDiscordID != user.discord_data.id and not request.user.is_superuser:
         return JsonResponse({"error": "You do not own this carrier"}, status=403)
     if request.method == "POST":
         form = EditCarrierForm(request.POST)
@@ -56,7 +59,8 @@ def editCarrier(request: HttpRequest, carrierID: int):
 @login_required(login_url="/auth/login")
 def seeCarrier(request: HttpRequest, carrierID: int):
     carrier = Carrier.objects.get(id=carrierID)
-    if carrier.ownerDiscordID != request.user.id and not request.user.is_superuser:
+    user = User.objects.get(id=request.user.id)
+    if carrier.ownerDiscordID != user.discord_data.id and not request.user.is_superuser:
         return JsonResponse({"error": "You do not own this carrier"}, status=403)
     for docking in Carrier.DOCKING_ACCESS_CHOICES:
         if carrier.dockingAccess == docking[0]:
