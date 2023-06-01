@@ -11,7 +11,7 @@ import uuid
 
 class User(AbstractUser):
     discord_data = models.OneToOneField(
-        DiscordUserData, on_delete=models.CASCADE, null=True, blank=True
+        DiscordUserData, on_delete=models.SET_NULL, null=True, blank=True
     )
     frontier_data = models.ManyToManyField(FrontierUserData, blank=True)
 

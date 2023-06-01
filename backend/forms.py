@@ -43,3 +43,40 @@ class ChangeNameForm(forms.Form):
             attrs={"class": "form-control", "placeholder": "Last Name"}
         ),
     )
+
+class RegisterForm(forms.Form):
+    email = forms.EmailField(
+        label="Email",
+        required=True,
+        widget=forms.EmailInput(
+            attrs={"class": "form-control", "placeholder": "Email"}
+        ),
+    )
+    password = forms.CharField(
+        label="Password",
+        required=True,
+        widget=forms.PasswordInput(
+            attrs={"class": "form-control", "placeholder": "Password"}
+        ),
+    )
+    password2 = forms.CharField(
+        label="Confirm Password",
+        required=True,
+        widget=forms.PasswordInput(
+            attrs={"class": "form-control", "placeholder": "Confirm Password"}
+        ),
+    )
+    first_name = forms.CharField(
+        label="First Name",
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "First Name"}
+        ),
+    )
+    last_name = forms.CharField(
+        label="Last Name",
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Last Name"}
+        ),
+    )
