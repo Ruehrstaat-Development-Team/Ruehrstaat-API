@@ -8,7 +8,7 @@ config = ConfigParser()
 config.read("config.cfg")
 
 WEBAPP_BRANCH = "BETA"
-WEBAPP_VERSION = "1.1.3"
+WEBAPP_VERSION = "1.2.0"
 
 WEBAPP_NAME = config.get("CUSTOMIZATION", "WEBAPP_NAME")
 
