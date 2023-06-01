@@ -6,15 +6,19 @@ from carriers.models import Carrier, CarrierService
 
 from .forms import EditCarrierForm
 from backend.models import User
+from backend.dataModels import DiscordUserData
 
 @login_required(login_url="/auth/login")
 def home(request: HttpRequest):
     # get all carriers owned by the user
+    carriers = []
     if request.user.is_superuser:
         carriers = Carrier.objects.all()
     else:
         user = User.objects.get(id=request.user.id)
-        carriers = Carrier.objects.filter(ownerDiscordID=user.discord_data.id)
+        discord_data = user.discord_data
+        if discord_data is not None:
+            carriers = Carrier.objects.filter(ownerDiscordID=discord_data.id)
     for carrier in carriers:
         for docking in Carrier.DOCKING_ACCESS_CHOICES:
             if carrier.dockingAccess == docking[0]:
@@ -28,7 +32,10 @@ def home(request: HttpRequest):
 def editCarrier(request: HttpRequest, carrierID: int):
     carrier = Carrier.objects.get(id=carrierID)
     user = User.objects.get(id=request.user.id)
-    if carrier.ownerDiscordID != user.discord_data.id and not request.user.is_superuser:
+    discord_data = user.discord_data
+    if discord_data is None:
+        return JsonResponse({"error": "You are not linked to a discord account"}, status=403)
+    if carrier.ownerDiscordID != discord_data.id and not request.user.is_superuser:
         return JsonResponse({"error": "You do not own this carrier"}, status=403)
     if request.method == "POST":
         form = EditCarrierForm(request.POST)
@@ -60,7 +67,10 @@ def editCarrier(request: HttpRequest, carrierID: int):
 def seeCarrier(request: HttpRequest, carrierID: int):
     carrier = Carrier.objects.get(id=carrierID)
     user = User.objects.get(id=request.user.id)
-    if carrier.ownerDiscordID != user.discord_data.id and not request.user.is_superuser:
+    discord_data = user.discord_data
+    if discord_data is None:
+        return JsonResponse({"error": "You are not linked to a discord account"}, status=403)
+    if carrier.ownerDiscordID != discord_data.id and not request.user.is_superuser:
         return JsonResponse({"error": "You do not own this carrier"}, status=403)
     for docking in Carrier.DOCKING_ACCESS_CHOICES:
         if carrier.dockingAccess == docking[0]:
