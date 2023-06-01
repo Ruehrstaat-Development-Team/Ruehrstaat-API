@@ -1,7 +1,7 @@
 from django.urls import path
 
-from .views import discord_login, discord_login_redirect, login_page, logout_page
-from .views import view_account, change_email, change_name, discord_link, discord_link_redirect
+from .views import discord_login, discord_login_redirect, login_page, logout_page, register_page
+from .views import view_account, change_email, change_name, discord_link, discord_link_redirect, discord_unlink
 
 urlpatterns = [
     path("login", login_page, name="login_page"),
@@ -12,6 +12,10 @@ urlpatterns = [
     path(
         "login/discord/redirect", discord_login_redirect, name="discord_login_redirect"
     ),
+
+    path("register", register_page, name="register_page"),
+    path("register/", register_page, name="register_page"),
+
     path("account", view_account, name="view_account"),
     path("account/", view_account, name="view_account"),
 
@@ -24,4 +28,7 @@ urlpatterns = [
     path("account/discord/link/", discord_link, name="discord_link"),
     path("account/discord/link/redirect", discord_link_redirect, name="discord_link_redirect"),
     path("account/discord/link/redirect/", discord_link_redirect, name="discord_link_redirect"),
+
+    path("account/discord/unlink", discord_unlink, name="discord_unlink"),
+    path("account/discord/unlink/", discord_unlink, name="discord_unlink"),
 ]

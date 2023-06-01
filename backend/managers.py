@@ -20,6 +20,7 @@ class AuthManager(models.UserManager):
         )
 
         user.discord_data = discord_data
+        discord_data.save()
         user.save()
         return user
 
@@ -30,10 +31,12 @@ class AuthManager(models.UserManager):
             return None
         
     def removeDiscordAccountFromUser(self, user):
-        user.discord_data.delete()
-        user.save()
+        discord_data = user.discord_data  # Get the discord_data object
+        user.discord_data = None  # Remove the reference from the user object
+        user.save()  # Save the user object without the reference to discord_data
+        discord_data.delete()  # Delete the discord_data object
         return user
-
+    
     def addFrontierAccountToUser(self, user, raw_frontier_data):
         frontier_data = FrontierUserData.objects.create(
             customer_id = raw_frontier_data["customer_id"],
@@ -43,6 +46,7 @@ class AuthManager(models.UserManager):
             platform = raw_frontier_data["platform"],
         )
         user.frontier_data.add(frontier_data)
+        frontier_data.save()
         user.save()
         return user
 
@@ -53,8 +57,10 @@ class AuthManager(models.UserManager):
             return None
         
     def removeFrontierAccountFromUser(self, user, frontier_id):
-        user.frontier_data.get(customer_id=frontier_id).delete()
+        frontier_data = user.frontier_data.get(customer_id=frontier_id)
+        user.frontier_data.remove(frontier_data)
         user.save()
+        frontier_data.delete()
         return user
 
     def create_superuser(self, username, password, **extra_fields):

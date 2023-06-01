@@ -2,6 +2,7 @@ from django.shortcuts import render
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
 
 from django.contrib.auth import authenticate, login, logout
 
@@ -37,7 +38,6 @@ def discord_login_redirect(request: HttpRequest):
 
 def frontier_login(request: HttpRequest):
     return redirect(get_frontier_auth_url())
-
 
 def frontier_login_redirect(request: HttpRequest):
     code = request.GET.get("code")
@@ -89,16 +89,19 @@ def login_page(request: HttpRequest):
     return render(request, "backend/login.html", {"form": form, "error": error})
 
 
+@login_required(login_url="/auth/login")
 def logout_page(request: HttpRequest):
     logout(request)
     return redirect("/login")
 
-
+@login_required(login_url="/auth/login")
 def view_account(request: HttpRequest):
     return render(request, "backend/account.html")
 
 from .forms import ChangeEmailForm
 from .models import User
+
+@login_required(login_url="/auth/login")
 def change_email(request: HttpRequest):
     if request.method == "POST":
         form = ChangeEmailForm(request.POST)
@@ -126,6 +129,7 @@ def change_email(request: HttpRequest):
 
 
 from .forms import ChangeNameForm
+@login_required(login_url="/auth/login")
 def change_name(request: HttpRequest):
     if request.method == "POST":
         form = ChangeNameForm(request.POST)
@@ -148,6 +152,7 @@ def change_name(request: HttpRequest):
     return render(request, "backend/change_name.html", {"form": form, "error": error})
 
 from .helpers import get_discord_link_auth_url, exchange_discord_link_code
+@login_required(login_url="/auth/login")
 def discord_link(request: HttpRequest):
     return redirect(get_discord_link_auth_url())
 
@@ -172,3 +177,56 @@ def discord_link_redirect(request: HttpRequest):
     user = User.objects.addDiscordAccountToUser(user, user_data)
 
     return redirect("/auth/account")
+
+@login_required(login_url="/auth/login")
+def discord_unlink(request: HttpRequest):
+    user = User.objects.get(id=request.user.id)
+    if not user:
+        return redirect("/login?error=Invalid+user")
+    
+    # if discord account already linked (saved in User.discord_data Object)
+    if user.discord_data is None:
+        return redirect("/auth/account?error=Discord+account+not+linked")
+    
+    # save discord data to user#
+    user = User.objects.removeDiscordAccountFromUser(user)
+
+    return redirect("/auth/account")
+
+from .forms import RegisterForm
+def register_page(request: HttpRequest):
+    if request.user.is_authenticated:
+        return redirect("/")
+    # display login.html page that uses forms.py crispy forms
+    if request.method == "POST":
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            if User.objects.filter(email=form.cleaned_data["email"]).exists():
+                return redirect("/auth/register?error=Email+already+in+use")
+            
+            ## check if passwords match
+            if form.cleaned_data["password"] != form.cleaned_data["password2"]:
+                return redirect("/auth/register?error=Passwords+do+not+match")
+
+            # create user
+            user = User.objects.create_user(
+                username=form.cleaned_data["email"],
+                email=form.cleaned_data["email"],
+                password=form.cleaned_data["password"],
+                first_name=form.cleaned_data["first_name"],
+                last_name=form.cleaned_data["last_name"],
+            )
+            if user:
+                login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+                return redirect("/")
+            else:
+                error = "Invalid email or password"
+                return render(request, "backend/register.html", {"form": form})
+        else: 
+            error = "Invalid form data"
+            return render(request, "backend/register.html", {"form": form})
+    else:
+        form = RegisterForm()
+        # check for error in query string
+        error = request.GET.get("error")
+    return render(request, "backend/register.html", {"form": form, "error": error})

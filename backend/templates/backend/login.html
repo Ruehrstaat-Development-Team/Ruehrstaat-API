@@ -1,5 +1,10 @@
-{% extends 'backend/base.html' %} {% load crispy_forms_tags %} {% block title %}
-Login {% endblock %} {% block content %} {% load static %}
+{% extends 'backend/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}
+Login
+{% endblock %}
+{% block content %}
+{% load static %}
 <div class="container py-5">
   <div class="row justify-content-center">
     <div class="col-md-6">
@@ -24,6 +29,13 @@ Login {% endblock %} {% block content %} {% load static %}
           class="discord-btn"
         />
       </a>
+    </div>
+  </div>
+
+  <div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+      <h3 class="mb-3">Register Account:</h3>
+      <a href="/auth/register" class="btn btn-secondary">Register</a>
     </div>
   </div>
 </div>
