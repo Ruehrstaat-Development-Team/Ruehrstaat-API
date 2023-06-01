@@ -1,0 +1,17 @@
+{% extends 'backend/base.html' %} {% load crispy_forms_tags %} {% block title %}
+Change E-Mail {% endblock %} {% block content %} {% load static %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2 class="mb-4">Change E-Mail</h2>
+      <form method="post" action="/auth/account/change_email" class="crispy-form">
+        {% csrf_token %} {{ form|crispy }}
+
+        <div class="form-group mt-4">
+          <button type="submit" class="btn btn-primary">Change E-Mail</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

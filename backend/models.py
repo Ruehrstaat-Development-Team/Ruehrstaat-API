@@ -2,24 +2,23 @@ from django.db import models
 
 from django.contrib.auth.models import AbstractUser
 
-from .managers import DiscordUserAuthManager
+from .managers import AuthManager
+
+from .dataModels import DiscordUserData, FrontierUserData
+
+import uuid
+
 
 class User(AbstractUser):
-    objects = DiscordUserAuthManager()
+    discord_data = models.OneToOneField(
+        DiscordUserData, on_delete=models.CASCADE, null=True, blank=True
+    )
+    frontier_data = models.ManyToManyField(FrontierUserData, blank=True)
 
-    id = models.BigIntegerField(primary_key=True)
-    discord_tag = models.CharField(max_length=255, null=True, blank=True)
-    avatar = models.CharField(max_length=255, null=True, blank=True)
-    avatar_url = models.CharField(max_length=255, null=True, blank=True)
-    locale = models.CharField(max_length=255, null=True, blank=True)
-    mfa_enabled = models.BooleanField(default=False)
-    verified = models.BooleanField(default=False)
-    email = models.CharField(max_length=255, null=True, blank=True)
-    flags = models.IntegerField(null=True, blank=True)
-    premium_type = models.IntegerField(null=True, blank=True)
-    public_flags = models.IntegerField(null=True, blank=True)
-    last_login = models.DateTimeField(null=True, blank=True)
-    def __str__(self):
-        return self.username
-    
+    objects = AuthManager()
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    username = models.EmailField(unique=True, blank=False, null=False)
+    USERNAME_FIELD = "username"
+
+    carrier_management_allowed = models.BooleanField(default=False)

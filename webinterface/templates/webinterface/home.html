@@ -1,4 +1,4 @@
-{% extends 'webinterface/base.html' %}
+{% extends 'backend/base.html' %}
 
 {% block title %}Ruehrstaat Webinterface{% endblock %}
 
@@ -6,7 +6,7 @@
     <!-- center div -->
     <div class="container text-center">
         <h1>Ruehrstaat Webinterface </h1>
-        <h2>Welcome {{user.username}}!</h5>
+        <h2>Welcome {{user.first_name}}!</h5>
     </div>
 {% endblock %}
 
