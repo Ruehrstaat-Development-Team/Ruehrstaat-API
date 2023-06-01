@@ -5,7 +5,7 @@ from configparser import ConfigParser
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 config = ConfigParser()
-config.read("configDev.cfg")
+config.read("config.cfg")
 
 WEBAPP_BRANCH = "MAIN"
 WEBAPP_VERSION = "1.1.3"
