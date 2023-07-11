@@ -16,14 +16,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from backend.views import discord_login, login_page, logout_page
+from backend.views import login_page, logout_page
 
 urlpatterns = [
     path('', include('webinterface.urls')),
     path('api/v1/', include('api.urls')),
     path('embeds/', include('embeds.urls')),
     path('auth/', include('backend.urls')),
-    path('admin/login/', discord_login, name="discord_login"),
+    path('oauth/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+    path('admin/login/', login_page, name="login_page"),
     path('login/', login_page, name="login_page"),
     path('logout/', logout_page, name="logout_page"),
     path('admin/', admin.site.urls),

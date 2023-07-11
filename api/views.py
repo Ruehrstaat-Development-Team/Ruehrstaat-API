@@ -6,7 +6,8 @@ from rest_framework.response import Response
 
 from carriers.models import Carrier, CarrierService
 from .models import ApiKey, ApiLog
-from .auth import HasAPIKey, checkForReadAccessAll, checkForReadAccess, checkForWriteAccessAll, checkForWriteAccess
+from .auth import HasAPIKey, HasReadAccess, HasWriteAccess
+from .auth import checkForReadAccessAll, checkForReadAccess, checkForWriteAccessAll, checkForWriteAccess
 from .serializers import CarrierSerializer, CarrierServicesSerializer
 from .serializers import APIgetCarrierInfoSerializer, APIcarrierJumpSerializer, APIcarrierPermissionSerializer, APIcarrierServiceSerializer
 from .serializers import APIcarrierHEADSerializer
@@ -20,7 +21,7 @@ from django.utils import timezone
 # get all registered carriers
 
 class getAllCarriers(APIView):
-    permission_classes = [HasAPIKey]
+    permission_classes = [HasReadAccess]
     def get(self, request):
         access_carrier_ids = checkForReadAccessAll(request)
         if not access_carrier_ids.count() > 0:
