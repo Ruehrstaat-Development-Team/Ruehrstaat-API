@@ -1,0 +1,12 @@
+.env
+.env.dev
+
+notes.txt
+
+main
+main.exe
+
+.bin/
+
+backend.log
+prod-docker-compose.yml
