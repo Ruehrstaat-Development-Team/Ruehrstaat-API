@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "crispy_forms",
+    "oauth2_provider",
     "rest_framework",
     "rest_framework_api_key",
     "backend.apps.BackendConfig",
@@ -153,6 +154,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 LOGIN_REDIRECT_URL = "/"
+LOGIN_URL = '/login/'
 LOGOUT_REDIRECT_URL = "/login/"
 
 EMAIL_BACKEND = config.get("EMAIL", "backend")
@@ -171,6 +173,16 @@ SESSION_COOKIE_SECURE = bool(int(config.get("HTTPS", "session_cookie_secure")))
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "oauth2_provider.contrib.rest_framework.OAuth2Authentication",
+        "rest_framework.authentication.TokenAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+}
+
+# Oauth2 Settings
+OAUTH2_PROVIDER = {
+    "SCOPES": {"read": "Read scope", "write": "Write scope"},
 }
 
 # Dicord Authentication Settings
