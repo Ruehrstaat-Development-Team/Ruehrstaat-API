@@ -15,7 +15,7 @@ const (
 type carrierJumpDto struct {
 	MarketID string `json:"marketId" binding:"required"`
 	Type     string `json:"type" binding:"required"`
-	Body     string `json:"body" binding:"required"`
+	Body     string `json:"body"`
 }
 
 func carrierJump(c *gin.Context) {
@@ -60,6 +60,12 @@ func carrierJump(c *gin.Context) {
 
 	// if type "jump" -> append currentLocation to LocationHistory and set CurrentLocation to new location else if type "cancel" -> remove last entry from LocationHistory and set CurrentLocation to last entry
 	if dto.Type == CarrierJumpTypePlotted {
+		// check if body is set
+		if dto.Body == "" {
+			c.JSON(400, gin.H{"error": "Bad Request"})
+			return
+		}
+
 		carrier.LocationHistory = append(carrier.LocationHistory, carrier.CurrentLocation)
 		carrier.CurrentLocation = dto.Body
 	} else if dto.Type == CarrierJumpTypeCancelled {
@@ -134,8 +140,8 @@ func updateCarrierDockingAccess(c *gin.Context) {
 
 type carrierServiceDto struct {
 	MarketID  string `json:"marketId" binding:"required"`
-	Operation string `json:"operation" binding:"required"`
-	Service   string `json:"service" binding:"required"`
+	Operation string `json:"operation" binding:"required"` // can be "activate", "deactivate", "pause" or "resume"
+	Service   string `json:"service" binding:"required"`   // ED Journal name of the service
 }
 
 func updateCarrierService(c *gin.Context) {

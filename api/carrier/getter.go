@@ -4,6 +4,7 @@ import (
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
 	"ruehrstaat-backend/serialize"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -128,8 +129,14 @@ func checkIfEditedSince(c *gin.Context) {
 	// parse timestamp
 	timestampParsed, err := time.Parse(time.RFC3339, timestamp)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
-		return
+		// check if parsing timestamp to int64 works
+		timestampInt, err := strconv.ParseInt(timestamp, 10, 64)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Bad Request"})
+			return
+		}
+
+		timestampParsed = time.Unix(timestampInt, 0)
 	}
 
 	// check for :id in param

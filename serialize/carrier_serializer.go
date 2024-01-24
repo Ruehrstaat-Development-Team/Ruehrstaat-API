@@ -14,6 +14,7 @@ type CarrierSerializer struct {
 func (s *CarrierSerializer) Serialize(carrier entities.Carrier) interface{} {
 	obj := &JsonObj{
 		"id":              carrier.ID,
+		"marketId":        carrier.MarketID,
 		"name":            carrier.Name,
 		"callsign":        carrier.Callsign,
 		"currentLocation": carrier.CurrentLocation,
