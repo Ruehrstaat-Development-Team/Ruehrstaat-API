@@ -129,9 +129,9 @@ func updateCarrierOverride(c *gin.Context) {
 		return
 	}
 
-	// check if carrier with same name or callsign already exists
-	if res := db.DB.Where("id != ? AND (name = ? OR callsign = ?)", carrier.ID, carrierDto.Name, carrierDto.Callsign).First(&entities.Carrier{}); res.Error == nil {
-		c.JSON(409, gin.H{"error": "Carrier with same name or callsign already exists"})
+	// check if that market id or callsign is already in use and not by this carrier
+	if res := db.DB.Where("id != ? AND (market_id = ? OR callsign = ?)", carrier.ID, carrierDto.MarketID, carrierDto.Callsign).First(&entities.Carrier{}); res.Error == nil {
+		c.JSON(409, gin.H{"error": "Carrier with same market id or callsign already exists"})
 		return
 	}
 
@@ -140,7 +140,9 @@ func updateCarrierOverride(c *gin.Context) {
 	carrier.Name = carrierDto.Name
 	carrier.Callsign = carrierDto.Callsign
 	carrier.CurrentLocation = carrierDto.CurrentLocation
-	carrier.LocationHistory = carrierDto.LocationHistory
+	if carrierDto.LocationHistory != nil {
+		carrier.LocationHistory = carrierDto.LocationHistory
+	}
 	carrier.AllowNotorious = carrierDto.AllowNotorious
 	carrier.FuelLevel = carrierDto.FuelLevel
 	carrier.CargoSpace = carrierDto.CargoSpace
@@ -233,26 +235,26 @@ func updateCarrier(c *gin.Context) {
 		return
 	}
 
+	marketOrCallsignChanged := false
+
 	// update Carrier
 	if carrierDto.MarketID != nil {
 		carrier.MarketID = *carrierDto.MarketID
+		marketOrCallsignChanged = true
 	}
-
-	nameOrCallsignChanged := false
 
 	if carrierDto.Name != nil {
 		carrier.Name = *carrierDto.Name
-		nameOrCallsignChanged = true
 	}
 
 	if carrierDto.Callsign != nil {
 		carrier.Callsign = *carrierDto.Callsign
-		nameOrCallsignChanged = true
+		marketOrCallsignChanged = true
 	}
 
-	if nameOrCallsignChanged {
+	if marketOrCallsignChanged {
 		// check if carrier with same name or callsign already exists
-		if res := db.DB.Where("id != ? AND (name = ? OR callsign = ?)", carrier.ID, carrierDto.Name, carrierDto.Callsign).First(&entities.Carrier{}); res.Error == nil {
+		if res := db.DB.Where("id != ? AND (market_id = ? OR callsign = ?)", carrier.ID, carrierDto.MarketID, carrierDto.Callsign).First(&entities.Carrier{}); res.Error == nil {
 			c.JSON(409, gin.H{"error": "Carrier with same name or callsign already exists"})
 			return
 		}
