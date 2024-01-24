@@ -17,6 +17,19 @@ func RegisterRoutes(api *gin.RouterGroup) {
 
 	carrierApi.GET("/", getAllCarriers)
 	carrierApi.GET("/:id", getCarrier)
+	carrierApi.POST("/", createCarrier)
+	carrierApi.PUT("/:id", updateCarrierOverride)
+	carrierApi.PATCH("/:id", updateCarrier)
+	carrierApi.HEAD("/:id", checkIfEditedSince)
+
+	carrierApi.GET("/service", getAllServices)
+	carrierApi.GET("/service/:name", getCarrierService)
+
+	connectorApi := carrierApi.Group("/connector")
+	connectorApi.PUT("/jump", carrierJump)
+	connectorApi.PUT("/access", updateCarrierDockingAccess)
+	connectorApi.PUT("/service", updateCarrierService)
+
 }
 
 func carrierTokenAuthMiddleware() gin.HandlerFunc {

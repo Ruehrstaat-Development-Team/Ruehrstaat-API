@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -57,6 +59,71 @@ func (c *Carrier) BeforeSave(tx *gorm.DB) (err error) {
 		c.ServiceNames = append(c.ServiceNames, service.Name)
 	}
 	return
+}
+
+// set DockingAccess from string
+func (c *Carrier) SetDockingAccess(access string) error {
+	switch CarrierDockingAccess(access) {
+	case DockingAccessAll, DockingAccessNone, DockingAccessFriends, DockingAccessSquadron, DockingAccessSquadronAndFriends:
+		c.DockingAccess = CarrierDockingAccess(access)
+		return nil
+	default:
+		return InvalidDockingAccessError
+	}
+}
+
+// set Category from string
+func (c *Carrier) SetCategory(category string) error {
+	switch CarrierCategory(category) {
+	case CarrierCategoryOther, CarrierCategoryFlagship, CarrierCategoryFreighter, CarrierCategorySupportVessel:
+		c.Category = CarrierCategory(category)
+		return nil
+	default:
+		return InvalidCategoryError
+	}
+}
+
+func (c *Carrier) HasService(service CarrierService) bool {
+	for _, s := range c.Services {
+		if s.Name == service.Name {
+			return true
+		}
+	}
+	return false
+}
+
+// set servies from string array (have a bool to override existing services)
+func (c *Carrier) SetServices(services []string, override bool) error {
+	if override {
+		c.Services = []CarrierService{}
+	}
+	// append services that are not already in the list
+	for _, serviceName := range services {
+		service, exists := CarrierServices[serviceName]
+		if !exists {
+			return InvalidServiceError
+		}
+		if !c.HasService(service) {
+			c.Services = append(c.Services, service)
+		}
+	}
+	return nil
+}
+
+// remove carrier service from services
+func (c *Carrier) RemoveService(service CarrierService) {
+	for i, s := range c.Services {
+		if s.Name == service.Name {
+			c.Services = append(c.Services[:i], c.Services[i+1:]...)
+		}
+	}
+}
+
+// add carrier service to services
+func (c *Carrier) AddService(service CarrierService) {
+	if !c.HasService(service) {
+		c.Services = append(c.Services, service)
+	}
 }
 
 type CarrierService struct {
@@ -145,4 +212,12 @@ const (
 	CarrierCategoryFlagship      CarrierCategory = "flagship"
 	CarrierCategoryFreighter     CarrierCategory = "freighter"
 	CarrierCategorySupportVessel CarrierCategory = "supportvessel"
+)
+
+// errors
+
+var (
+	InvalidDockingAccessError = errors.New("Invalid Docking Access provided")
+	InvalidCategoryError      = errors.New("Invalid Category provided")
+	InvalidServiceError       = errors.New("Invalid Service provided")
 )
