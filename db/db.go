@@ -32,10 +32,14 @@ func Initialize() {
 		&entities.User{},
 		&entities.RefreshToken{},
 		&entities.Fido2Login{},
+		&entities.ApiToken{},
+
+		&entities.Carrier{},
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	log.Println("Database Migration complete")
+
 }

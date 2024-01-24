@@ -26,6 +26,16 @@ func DoArray[T any](serializer Serializer[T], objs []T) []interface{} {
 	return result
 }
 
+func DoMapToArr[T any](serializer Serializer[T], objs map[string]T) []interface{} {
+	result := make([]interface{}, len(objs))
+	i := 0
+	for _, obj := range objs {
+		result[i] = Do[T](serializer, obj)
+		i++
+	}
+	return result
+}
+
 func DoVarargs[T any](serializer Serializer[T], objs ...T) []interface{} {
 	return DoArray[T](serializer, objs)
 }
@@ -36,6 +46,10 @@ func JSON[T any](c *gin.Context, serializer Serializer[T], obj T) {
 
 func JSONArray[T any](c *gin.Context, serializer Serializer[T], objs []T) {
 	c.JSON(200, DoArray[T](serializer, objs))
+}
+
+func JSONMapToArr[T any](c *gin.Context, serializer Serializer[T], objs map[string]T) {
+	c.JSON(200, DoMapToArr[T](serializer, objs))
 }
 
 func JSONVarargs[T any](c *gin.Context, serializer Serializer[T], objs ...T) {
