@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -16,8 +18,9 @@ type ApiToken struct {
 	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index"`
 	IsRevoked bool      `gorm:"type:boolean;not null;default:false"`
-	ExpiresAt int64     `gorm:"type:bigint;not null;default:0"`
-	Token     string    `gorm:"type:varchar(255);not null;unique;index"`
+	ExpiresAt time.Time `gorm:"type:timestamp with time zone;not null;default:now() + interval '1 year'"`
+	Prefix    string    `gorm:"type:varchar(255);not null;default:'';index"`
+	Token     string    `gorm:"type:varchar(255);not null;default:''"`
 
 	// Access rights
 	HasFullReadAccess  bool `gorm:"type:boolean;not null;default:false"`
