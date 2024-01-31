@@ -22,13 +22,13 @@ func getAllCarriers(c *gin.Context) {
 	carriers := []entities.Carrier{}
 
 	if user.IsAdmin || (token != nil && token.HasFullReadAccess) {
-		if res := db.DB.Find(&carriers); res.Error != nil {
+		if res := db.DB.Find(&carriers).Preload("Owner"); res.Error != nil {
 			c.JSON(500, gin.H{"error": "Internal Server Error"})
 			return
 		}
 	} else {
 		// get carrier where owner id is user id
-		if res := db.DB.Where("owner_id = ?", user.ID).Find(&carriers); res.Error != nil {
+		if res := db.DB.Where("owner_id = ?", user.ID).Preload("Owner").Find(&carriers); res.Error != nil {
 			c.JSON(500, gin.H{"error": "Internal Server Error"})
 			return
 		}
@@ -36,7 +36,7 @@ func getAllCarriers(c *gin.Context) {
 		// if token is not nil, get append carriers where id is in token.HadReadAccessTo
 		if token != nil {
 			addtionalCarriers := []entities.Carrier{}
-			if res := db.DB.Where("id IN (?)", token.HasReadAccessTo).Find(&addtionalCarriers); res.Error != nil {
+			if res := db.DB.Where("id IN (?)", token.HasReadAccessTo).Preload("Owner").Find(&addtionalCarriers); res.Error != nil {
 				c.JSON(500, gin.H{"error": "Internal Server Error"})
 				return
 			}
@@ -62,7 +62,7 @@ func getCarrier(c *gin.Context) {
 	}
 
 	carrier := entities.Carrier{}
-	if res := db.DB.Where("id = ?", carrierId).First(&carrier); res.Error != nil {
+	if res := db.DB.Where("id = ?", carrierId).Preload("Owner").First(&carrier); res.Error != nil {
 		if !user.IsAdmin {
 			c.JSON(403, gin.H{"error": "Forbidden"})
 			return
