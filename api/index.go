@@ -3,6 +3,7 @@ package api
 import (
 	"ruehrstaat-backend/api/auth"
 	"ruehrstaat-backend/api/carrier"
+	"ruehrstaat-backend/api/public"
 	"ruehrstaat-backend/api/users"
 
 	"github.com/gin-gonic/gin"
@@ -13,5 +14,6 @@ func RegisterRoutes(router *gin.RouterGroup) {
 
 	auth.RegisterRoutes(api)
 	users.RegisterRoutes(api)
+	public.RegisterRoutes(api)
 	carrier.RegisterRoutes(api)
 }
