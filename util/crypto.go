@@ -16,6 +16,12 @@ func GenerateReadableRandomString(n int) (string, error) {
 	return generateRandomStringFromCharset(n, letters)
 }
 
+// Generate randoim number string
+func GenerateRandomNumberString(n int) (string, error) {
+	const letters = "0123456789"
+	return generateRandomStringFromCharset(n, letters)
+}
+
 func generateRandomStringFromCharset(n int, charset string) (string, error) {
 	ret := make([]byte, n)
 	for i := 0; i < n; i++ {

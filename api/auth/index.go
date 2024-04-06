@@ -32,6 +32,10 @@ func RegisterRoutes(api *gin.RouterGroup) {
 	authApi.POST("/refresh", refreshToken)
 	authApi.POST("/logout", logout)
 	authApi.POST("/logout/all", logoutAll)
+
+	authApi.GET("/quicklogin", requestQuickLoginToken)
+	authApi.PUT("/quicklogin", verifyQuickLoginToken)
+	authApi.POST("/quicklogin", completeQuickLogin)
 }
 
 func register(c *gin.Context) {

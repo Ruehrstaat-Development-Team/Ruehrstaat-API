@@ -26,4 +26,6 @@ var (
 	ErrEmailChangeNotRequested = errors.New("email change not requested")
 
 	ErrUnauthorized = errors.New("unauthorized")
+
+	ErrServer = errors.New("server error")
 )

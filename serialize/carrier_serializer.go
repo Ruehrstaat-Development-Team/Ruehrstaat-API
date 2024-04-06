@@ -8,7 +8,8 @@ import (
 
 type CarrierSerializer struct {
 	// Whether to include the full user object (true) or just specific fields
-	Full bool `json:"full"`
+	Full    bool `json:"full"`
+	Limited bool `json:"limited"`
 }
 
 func (s *CarrierSerializer) Serialize(carrier entities.Carrier) interface{} {
@@ -22,6 +23,14 @@ func (s *CarrierSerializer) Serialize(carrier entities.Carrier) interface{} {
 		"services":        DoArray[entities.CarrierService](&CarrierServiceSerializer{}, carrier.Services),
 		"category":        carrier.Category,
 	}
+
+	if carrier.Owner != nil {
+		obj.Add("owner", carrier.Owner.CmdrName)
+		if !s.Limited {
+			obj.Add("ownerDiscordId", carrier.Owner.DiscordId)
+		}
+	}
+
 	if s.Full {
 		obj.Add("fuelLevel", carrier.FuelLevel)
 		obj.Add("cargoSpace", carrier.CargoSpace)
@@ -29,11 +38,6 @@ func (s *CarrierSerializer) Serialize(carrier entities.Carrier) interface{} {
 		obj.Add("balance", carrier.Balance)
 		obj.Add("reserveBalance", carrier.ReserveBalance)
 		obj.Add("availableBalance", carrier.AvailableBalance)
-	}
-
-	if carrier.Owner != nil {
-		obj.Add("owner", carrier.Owner.CmdrName)
-		obj.Add("ownerDiscordId", carrier.Owner.DiscordId)
 	}
 
 	return obj
