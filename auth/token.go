@@ -14,7 +14,7 @@ import (
 type TokenPair struct {
 	RefreshToken string `json:"-"`
 	IdenityToken string `json:"token"`
-	ExpiresIn    int64  `json:"expiresIn"`
+	ExpiresAt    int64  `json:"expiresAt"` // expiry unix timestamp
 }
 
 func AuthenticateInfra(c *gin.Context) *entities.InfraToken {

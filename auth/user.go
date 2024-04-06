@@ -66,7 +66,7 @@ func Register(email string, password string, nickname string, cmdrName string, a
 // The activation token is used to activate the user's account.
 // It is sent to the user's email address.
 func GenerateActivationToken(user *entities.User) error {
-	token, err := generateCustomToken(user.ID.String(), "MTN Media Account Activation", 72)
+	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron Account Activation", 72)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func ActivateAccount(userID uuid.UUID, token string) error {
 }
 
 func GenerateResetPasswordToken(user *entities.User) error {
-	token, err := generateCustomToken(user.ID.String(), "MTN-Media Account Passwort Reset", 1)
+	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron Account Passwort Reset", 1)
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func ChangePassword(user *entities.User, oldPassword string, newPassword string,
 // The activation token is used to activate the user's account.
 // It is sent to the user's email address.
 func GenerateEmailChangeToken(user *entities.User) error {
-	token, err := generateCustomToken(user.ID.String(), "MTN Media email change", 72)
+	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron email change", 72)
 	if err != nil {
 		return err
 	}

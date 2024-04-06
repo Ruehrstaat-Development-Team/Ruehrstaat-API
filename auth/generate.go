@@ -21,7 +21,7 @@ func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, error
 		return TokenPair{}, ErrAbsoluteExpReached
 	}
 
-	exp := time.Now().Add(time.Minute * 30).Unix()
+	exp := time.Now().Add(time.Hour * 6).Unix()
 	identityToken, err := generateToken(getIdentityTokenSecret(), userID.String(), exp)
 	if err != nil {
 		return TokenPair{}, err
@@ -35,15 +35,15 @@ func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, error
 	return TokenPair{
 		RefreshToken: refreshToken,
 		IdenityToken: identityToken,
-		ExpiresIn:    exp * 1000,
+		ExpiresAt:    exp,
 	}, nil
 }
 
 func generateToken(secret string, sub string, exp int64) (string, error) {
 	currTime := time.Now().Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"iss": "MTN-Media Auth",
-		"aud": "mtnmedia.group",
+		"iss": "Ruehrstaat Auth",
+		"aud": "ruehrstaat.org",
 		"sub": sub,
 		"exp": exp,
 		"iat": currTime,
@@ -57,7 +57,7 @@ func generateToken(secret string, sub string, exp int64) (string, error) {
 func generateCustomToken(subject string, aud string, hoursExp int) (string, error) {
 	currTime := time.Now().Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"iss": "MTN-Media Auth",
+		"iss": "Ruehrstaat Auth",
 		"aud": aud,
 		"sub": subject,
 		"exp": time.Now().Add(time.Hour * time.Duration(hoursExp)).Unix(),

@@ -24,7 +24,7 @@ type registerCachePayload struct {
 
 func InitializeWebauthn() {
 	conf := &webauthn.Config{
-		RPDisplayName: "MTN-Media",
+		RPDisplayName: "Ruehrstaat-Squadron",
 		RPID:          os.Getenv("FQDN"),
 		RPOrigins:     []string{os.Getenv("FRONTEND_URL")},
 	}

@@ -28,7 +28,7 @@ func beginTotp(c *gin.Context) {
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "MTN-Media",
+		Issuer:      "Ruehrstaat-Squadron",
 		AccountName: user.Email,
 	})
 	if err != nil {
@@ -187,7 +187,7 @@ func requestUrlForVerification(c *gin.Context) {
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "MTN-Media",
+		Issuer:      "Ruehrstaat-Squadron",
 		AccountName: user.Email,
 	})
 	if err != nil {
