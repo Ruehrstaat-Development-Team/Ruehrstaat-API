@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/base64"
-	"errors"
 	"net/http"
 	"os"
 	"ruehrstaat-backend/api/dtoerr"
@@ -11,6 +10,7 @@ import (
 	"ruehrstaat-backend/cache"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"strings"
 	"time"
 
@@ -40,29 +40,25 @@ func RegisterRoutes(api *gin.RouterGroup) {
 
 func register(c *gin.Context) {
 	if os.Getenv("REGISTRATION_DISABLED") == "true" {
-		c.Error(errors.New("registration is disabled"))
-		c.JSON(403, gin.H{"error": "Registration is disabled"})
+		errors.ReturnWithError(c, auth.ErrRegistrationDisabled)
 		return
 	}
 
 	dto := &registerBody{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	err := auth.Register(dto.Email, dto.Password, dto.Nickname, dto.CmdrName, false)
 	if err == auth.ErrInvalidEmail {
-		c.Error(err)
-		c.JSON(400, gin.H{"error": "Invalid email"})
+		errors.ReturnWithError(c, err)
 		return
 	}
 
 	if err == auth.ErrEmailTaken {
-		c.Error(err)
-		c.JSON(400, gin.H{"error": "Email is already taken"})
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -78,27 +74,19 @@ func login(c *gin.Context) {
 	dto := &loginBody{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	token, user, err := auth.Login(dto.Email, dto.Password, dto.Otp)
-	if err == auth.ErrUserNotFound {
+	if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
 		c.Error(err)
-		c.JSON(404, gin.H{"error": "User not found"})
-		return
-	}
-
-	if err == auth.ErrInvalidCredentials {
-		c.Error(err)
-		c.JSON(400, gin.H{"error": "Invalid password"})
+		errors.ReturnWithError(c, auth.ErrUserNotFoundOrInvalidCredentials)
 		return
 	}
 
 	if err == auth.ErrUserBanned {
-		c.Error(err)
-		c.JSON(403, gin.H{"error": "User is banned"})
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -106,8 +94,10 @@ func login(c *gin.Context) {
 		c.Error(err)
 		activateState := cache.BeginState("resend_activate", user.ID, time.Minute*5)
 
-		c.JSON(409, gin.H{
-			"error": "User is not activated",
+		c.JSON(err.HtmlCode(), gin.H{
+			"error": err.Message(),
+			"code":  err.Code(),
+			"name":  err.Nickname(),
 			"state": activateState,
 		})
 		return
@@ -120,8 +110,10 @@ func login(c *gin.Context) {
 			"password": dto.Password,
 		}, time.Minute*3)
 
-		c.JSON(428, gin.H{
-			"error": "OTP is missing",
+		c.JSON(err.HtmlCode(), gin.H{
+			"error": err.Message(),
+			"code":  err.Code(),
+			"name":  err.Nickname(),
 			"state": otpState,
 		})
 		return
@@ -130,9 +122,7 @@ func login(c *gin.Context) {
 	if err == auth.ErrUserOtpWrong {
 		c.Error(err)
 
-		c.JSON(428, gin.H{
-			"error": "Login credentials are wrong",
-		})
+		errors.ReturnWithError(c, auth.ErrInvalidCredentials)
 		return
 	}
 
@@ -149,34 +139,25 @@ func loginTotp(c *gin.Context) {
 	dto := &loginTotpBody{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	var payload map[string]string
 	if ok := cache.EndState("login_otp", dto.State, &payload); !ok {
-		c.Error(errors.New("invalid state"))
-		c.JSON(400, gin.H{"error": "Invalid state"})
+		errors.ReturnWithError(c, auth.ErrInvalidState)
 		return
 	}
 
 	token, user, err := auth.Login(payload["email"], payload["password"], &dto.Code)
-	if err == auth.ErrUserNotFound {
+	if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
 		c.Error(err)
-		c.JSON(404, gin.H{"error": "User not found"})
-		return
-	}
-
-	if err == auth.ErrInvalidCredentials {
-		c.Error(err)
-		c.JSON(400, gin.H{"error": "Invalid password"})
+		errors.ReturnWithError(c, auth.ErrUserNotFoundOrInvalidCredentials)
 		return
 	}
 
 	if err == auth.ErrUserBanned {
-		c.Error(err)
-		c.JSON(403, gin.H{"error": "User is banned"})
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -184,8 +165,10 @@ func loginTotp(c *gin.Context) {
 		c.Error(err)
 		activateState := cache.BeginState("resend_activate", user.ID, time.Minute*5)
 
-		c.JSON(409, gin.H{
-			"error": "User is not activated",
+		c.JSON(err.HtmlCode(), gin.H{
+			"error": err.Message(),
+			"code":  err.Code(),
+			"name":  err.Nickname(),
 			"state": activateState,
 		})
 		return
@@ -198,9 +181,11 @@ func loginTotp(c *gin.Context) {
 			"password": payload["password"],
 		}, time.Minute*3)
 
-		c.JSON(428, gin.H{
-			"error": "OTP is wrong",
+		c.JSON(err.HtmlCode(), gin.H{
+			"error": err.Message(),
 			"state": otpState,
+			"code":  err.Code(),
+			"name":  err.Nickname(),
 		})
 		return
 	}
@@ -219,13 +204,13 @@ func refreshToken(c *gin.Context) {
 	if err != nil {
 		c.Error(err)
 		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Refresh token is missing"})
 		return
 	}
 
 	token, err := auth.Refresh(refreshToken)
 	if err == auth.ErrUsedRefreshToken {
-		c.JSON(400, gin.H{"error": "Token invalid"})
+		c.Error(err)
+		errors.ReturnWithError(c, auth.ErrInvalidToken)
 		return
 	}
 
@@ -242,8 +227,7 @@ func logout(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Refresh token is missing"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
@@ -261,8 +245,7 @@ func logoutAll(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Refresh token is missing"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
@@ -279,8 +262,7 @@ func logoutAll(c *gin.Context) {
 func beginDiscordLogin(c *gin.Context) {
 	redirectTo := c.Query("redirect_to")
 	if redirectTo == "" {
-		c.Error(errors.New("redirect URL is missing"))
-		c.JSON(400, gin.H{"error": "Redirect URL is missing"})
+		errors.ReturnWithError(c, auth.ErrRedirectUrlMissing)
 		return
 	}
 
@@ -304,15 +286,13 @@ func beginDiscordLogin(c *gin.Context) {
 func discordLoginCallback(c *gin.Context) {
 	state := c.Query("state")
 	if state == "" {
-		c.Error(errors.New("state is missing"))
-		c.JSON(400, gin.H{"error": "State is missing"})
+		errors.ReturnWithError(c, auth.ErrStateIsMissing)
 		return
 	}
 
 	code := c.Query("code")
 	if code == "" {
-		c.Error(errors.New("code is missing"))
-		c.JSON(400, gin.H{"error": "Code is missing"})
+		errors.ReturnWithError(c, auth.ErrCodeIsMissing)
 		return
 	}
 
@@ -322,8 +302,7 @@ func discordLoginCallback(c *gin.Context) {
 	}{}
 
 	if !cache.EndState("user_discord_login", state, &payload) {
-		c.Error(errors.New("invalid state"))
-		c.JSON(400, gin.H{"error": "Invalid state"})
+		errors.ReturnWithError(c, auth.ErrInvalidState)
 		return
 	}
 
@@ -358,8 +337,8 @@ func discordLoginCallback(c *gin.Context) {
 		return
 	}
 
-	tokenJson, err := jsoniter.Marshal(token)
-	if err != nil {
+	tokenJson, err2 := jsoniter.Marshal(token)
+	if err2 != nil {
 		c.Redirect(http.StatusTemporaryRedirect, getRedirect("success=false"))
 		return
 	}
@@ -383,8 +362,7 @@ func beginLoginFido2(c *gin.Context) {
 func endLoginFido2(c *gin.Context) {
 	state := c.Query("state")
 	if state == "" {
-		c.Error(errors.New("state is missing"))
-		c.JSON(400, gin.H{"error": "State is missing"})
+		errors.ReturnWithError(c, auth.ErrStateIsMissing)
 		return
 	}
 

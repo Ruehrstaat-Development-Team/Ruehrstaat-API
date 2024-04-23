@@ -3,6 +3,7 @@ package auth
 import (
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp/totp"
@@ -10,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CheckUserLoginAllowance(user *entities.User) error {
+func CheckUserLoginAllowance(user *entities.User) *errors.RstError {
 	if !user.IsActivated {
 		return ErrUserNotActivated
 	}
@@ -24,7 +25,7 @@ func CheckUserLoginAllowance(user *entities.User) error {
 
 // Tries to login a user with the given email and password.
 // Returns a token pair if successful, otherwise an error.
-func Login(email string, password string, otp *string) (*TokenPair, *entities.User, error) {
+func Login(email string, password string, otp *string) (*TokenPair, *entities.User, *errors.RstError) {
 	user := &entities.User{}
 
 	if res := db.DB.Where("email = ?", email).First(user); res.Error != nil {
@@ -53,7 +54,7 @@ func Login(email string, password string, otp *string) (*TokenPair, *entities.Us
 	}
 
 	if res := db.DB.Model(&entities.RefreshToken{}).Where("user_id = ?", user.ID).Update("is_revoked", true); res.Error != nil {
-		return nil, user, res.Error
+		return nil, user, errors.NewDBErrorFromError(res.Error)
 	}
 
 	tokenPair, err := generatePair(user.ID, nil)
@@ -64,7 +65,7 @@ func Login(email string, password string, otp *string) (*TokenPair, *entities.Us
 	return &tokenPair, user, nil
 }
 
-func CreateTokenPairForUser(user *entities.User) (*TokenPair, error) {
+func CreateTokenPairForUser(user *entities.User) (*TokenPair, *errors.RstError) {
 	tokenPair, err := generatePair(user.ID, nil)
 	if err != nil {
 		return nil, err
@@ -76,14 +77,14 @@ func CreateTokenPairForUser(user *entities.User) (*TokenPair, error) {
 	}
 
 	if res := db.DB.Create(refreshToken); res.Error != nil {
-		return nil, res.Error
+		return nil, errors.NewDBErrorFromError(res.Error)
 	}
 
 	return &tokenPair, nil
 }
 
 // Tries to use a backup code to do a two factor authentication.
-func TryBackupCodes(user *entities.User, otp *string) error {
+func TryBackupCodes(user *entities.User, otp *string) *errors.RstError {
 	if user.OtpBackupCodes == nil || len(user.OtpBackupCodes) == 0 {
 		return ErrUserOtpWrong
 	}
@@ -102,7 +103,7 @@ func TryBackupCodes(user *entities.User, otp *string) error {
 	}
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	return nil
@@ -110,7 +111,7 @@ func TryBackupCodes(user *entities.User, otp *string) error {
 
 // Logs out the user with the given refresh token.
 // If all is true, all refresh tokens for the user will be deleted.
-func Logout(refreshToken string, all bool) error {
+func Logout(refreshToken string, all bool) *errors.RstError {
 	decoded, err := decodeToken(getRefreshTokenSecret(), refreshToken)
 	if err != nil {
 		return err
@@ -118,11 +119,11 @@ func Logout(refreshToken string, all bool) error {
 
 	if all {
 		if res := db.DB.Where("user_id = ?", decoded.Subject).Delete(&entities.RefreshToken{}); res.Error != nil {
-			return res.Error
+			return errors.NewDBErrorFromError(res.Error)
 		}
 	} else {
 		if res := db.DB.Where("token = ? OR (user_id = ? AND is_revoked = ?)", refreshToken, decoded.Subject, true).Delete(&entities.RefreshToken{}); res.Error != nil {
-			return res.Error
+			return errors.NewDBErrorFromError(res.Error)
 		}
 	}
 
@@ -131,7 +132,7 @@ func Logout(refreshToken string, all bool) error {
 
 // Refreshes the access token with the given refresh token. If the refresh token is invalid, an error is returned.
 // The refresh token will be rotated, so that the old one is no longer valid.
-func Refresh(refreshToken string) (*TokenPair, error) {
+func Refresh(refreshToken string) (*TokenPair, *errors.RstError) {
 	decoded, err := decodeToken(getRefreshTokenSecret(), refreshToken)
 	if err != nil {
 		return nil, ErrUsedRefreshToken
@@ -140,7 +141,7 @@ func Refresh(refreshToken string) (*TokenPair, error) {
 	existing := &entities.RefreshToken{}
 	if res := db.DB.Where("token = ? AND user_id = ?", refreshToken, decoded.Subject).First(existing); res.Error != nil {
 		if res.Error != gorm.ErrRecordNotFound {
-			return nil, res.Error
+			return nil, errors.NewDBErrorFromError(res.Error)
 		}
 	} else if existing.IsRevoked {
 		Logout(refreshToken, true)
@@ -153,7 +154,7 @@ func Refresh(refreshToken string) (*TokenPair, error) {
 	}
 
 	if res := db.DB.Model(&entities.RefreshToken{}).Where("user_id = ? AND token = ?", decoded.Subject, refreshToken).Update("is_revoked", true); res.Error != nil {
-		return nil, res.Error
+		return nil, errors.NewDBErrorFromError(res.Error)
 	}
 
 	refreshTokenEntity := &entities.RefreshToken{
@@ -162,7 +163,7 @@ func Refresh(refreshToken string) (*TokenPair, error) {
 	}
 
 	if res := db.DB.Create(refreshTokenEntity); res.Error != nil {
-		return nil, res.Error
+		return nil, errors.NewDBErrorFromError(res.Error)
 	}
 
 	return &tokenPair, nil

@@ -3,11 +3,12 @@ package auth
 import (
 	"ruehrstaat-backend/cache"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/util"
 	"time"
 )
 
-func RequestQuickLoginToken() (string, string, error) {
+func RequestQuickLoginToken() (string, string, *errors.RstError) {
 	// generate 6 digit random number, save it in redis with 5 minute expiration as key with "pending" state and return number
 	var token string
 	var err error
@@ -15,7 +16,7 @@ func RequestQuickLoginToken() (string, string, error) {
 	for {
 		token, err = util.GenerateRandomNumberString(6)
 		if err != nil {
-			return "", "", err
+			return "", "", errors.NewFromError(err)
 		}
 
 		if !cache.HasState("quick_login_session", token) {
@@ -29,7 +30,7 @@ func RequestQuickLoginToken() (string, string, error) {
 
 	sessionID, err := util.GenerateRandomString(32)
 	if err != nil {
-		return "", "", err
+		return "", "", errors.NewFromError(err)
 	}
 
 	// save token in redis with 5 minute expiration
@@ -39,7 +40,7 @@ func RequestQuickLoginToken() (string, string, error) {
 	return token, sessionID, nil
 }
 
-func VerifyQuickLoginToken(token string, user *entities.User) error {
+func VerifyQuickLoginToken(token string, user *entities.User) *errors.RstError {
 	var payload string
 
 	// check if token is pending in redis, if so, set user as payload
@@ -58,7 +59,7 @@ func VerifyQuickLoginToken(token string, user *entities.User) error {
 	return nil
 }
 
-func CompleteQuickLogin(token string, sessionID string) (string, error) {
+func CompleteQuickLogin(token string, sessionID string) (string, *errors.RstError) {
 	// check if token is verified in redis, if so, return user_id
 	var userId string
 	if !cache.EndState("quick_login_verified", token, &userId) {
