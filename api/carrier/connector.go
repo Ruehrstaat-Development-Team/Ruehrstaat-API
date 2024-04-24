@@ -1,8 +1,11 @@
 package carrier
 
 import (
+	"ruehrstaat-backend/api/dtoerr"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
+	"ruehrstaat-backend/services/carrier"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,31 +32,31 @@ func carrierJump(c *gin.Context) {
 	// check dto
 	dto := carrierJumpDto{}
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	// check if type is valid
 	if dto.Type != CarrierJumpTypePlotted && dto.Type != CarrierJumpTypeCancelled {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
 	// check if carrier exists using market id
-	carrier := entities.Carrier{}
-	if res := db.DB.Where("market_id = ?", dto.MarketID).First(&carrier); res.Error != nil {
+	cr := entities.Carrier{}
+	if res := db.DB.Where("market_id = ?", dto.MarketID).First(&cr); res.Error != nil {
 		if !user.IsAdmin && (token == nil || !token.HasFullWriteAccess) {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
-		c.JSON(404, gin.H{"error": "Not Found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
 	// check if user is admin or token has full write access
-	if !user.IsAdmin && (token == nil || !token.HasWriteAccessToCarrier(carrier.ID)) {
-		if carrier.OwnerID != nil && *carrier.OwnerID != user.ID {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+	if !user.IsAdmin && (token == nil || !token.HasWriteAccessToCarrier(cr.ID)) {
+		if cr.OwnerID != nil && *cr.OwnerID != user.ID {
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
 	}
@@ -62,22 +65,23 @@ func carrierJump(c *gin.Context) {
 	if dto.Type == CarrierJumpTypePlotted {
 		// check if body is set
 		if dto.Body == "" {
-			c.JSON(400, gin.H{"error": "Bad Request"})
+			errors.ReturnWithError(c, dtoerr.InvalidDTO)
 			return
 		}
 
-		carrier.LocationHistory = append(carrier.LocationHistory, carrier.CurrentLocation)
-		carrier.CurrentLocation = dto.Body
+		cr.LocationHistory = append(cr.LocationHistory, cr.CurrentLocation)
+		cr.CurrentLocation = dto.Body
 	} else if dto.Type == CarrierJumpTypeCancelled {
-		if len(carrier.LocationHistory) > 0 {
-			carrier.CurrentLocation = carrier.LocationHistory[len(carrier.LocationHistory)-1]
-			carrier.LocationHistory = carrier.LocationHistory[:len(carrier.LocationHistory)-1]
+		if len(cr.LocationHistory) > 0 {
+			cr.CurrentLocation = cr.LocationHistory[len(cr.LocationHistory)-1]
+			cr.LocationHistory = cr.LocationHistory[:len(cr.LocationHistory)-1]
 		}
 	}
 
 	// update carrier
-	if res := db.DB.Save(&carrier); res.Error != nil {
-		c.JSON(500, gin.H{"error": "Internal Server Error"})
+	if res := db.DB.Save(&cr); res.Error != nil {
+		c.Error(res.Error)
+		errors.ReturnWithError(c, carrier.ErrInternalServerError)
 		return
 	}
 
@@ -100,38 +104,39 @@ func updateCarrierDockingAccess(c *gin.Context) {
 	// check dto
 	dto := carrierDockingAccessDto{}
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	// check if carrier exists using market id
-	carrier := entities.Carrier{}
-	if res := db.DB.Where("market_id = ?", dto.MarketID).First(&carrier); res.Error != nil {
+	cr := entities.Carrier{}
+	if res := db.DB.Where("market_id = ?", dto.MarketID).First(&cr); res.Error != nil {
 		if !user.IsAdmin && (token == nil || !token.HasFullWriteAccess) {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
-		c.JSON(404, gin.H{"error": "Not Found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
 	// check if user is admin or token has full write access
-	if !user.IsAdmin && (token == nil || !token.HasWriteAccessToCarrier(carrier.ID)) {
-		if carrier.OwnerID != nil && *carrier.OwnerID != user.ID {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+	if !user.IsAdmin && (token == nil || !token.HasWriteAccessToCarrier(cr.ID)) {
+		if cr.OwnerID != nil && *cr.OwnerID != user.ID {
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
 	}
 
 	// update carrier
-	err := carrier.SetDockingAccess(dto.Access)
+	err := cr.SetDockingAccess(dto.Access)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, err)
 		return
 	}
 
-	if res := db.DB.Save(&carrier); res.Error != nil {
-		c.JSON(500, gin.H{"error": "Internal Server Error"})
+	if res := db.DB.Save(&cr); res.Error != nil {
+		c.Error(res.Error)
+		errors.ReturnWithError(c, carrier.ErrInternalServerError)
 		return
 	}
 
@@ -155,25 +160,25 @@ func updateCarrierService(c *gin.Context) {
 	// check dto
 	dto := carrierServiceDto{}
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	// check if carrier exists using market id
-	carrier := entities.Carrier{}
-	if res := db.DB.Where("market_id = ?", dto.MarketID).First(&carrier); res.Error != nil {
+	cr := entities.Carrier{}
+	if res := db.DB.Where("market_id = ?", dto.MarketID).First(&cr); res.Error != nil {
 		if !user.IsAdmin && (token == nil || !token.HasFullWriteAccess) {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
-		c.JSON(404, gin.H{"error": "Not Found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
 	// check if user is admin or token has full write access
-	if !user.IsAdmin && (token == nil || !token.HasWriteAccessToCarrier(carrier.ID)) {
-		if carrier.OwnerID != nil && *carrier.OwnerID != user.ID {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+	if !user.IsAdmin && (token == nil || !token.HasWriteAccessToCarrier(cr.ID)) {
+		if cr.OwnerID != nil && *cr.OwnerID != user.ID {
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
 	}
@@ -181,22 +186,23 @@ func updateCarrierService(c *gin.Context) {
 	// update carrier
 	service, exists := entities.CarrierServices[dto.Service]
 	if !exists {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
 	switch dto.Operation {
 	case "activate", "resume":
-		carrier.AddService(service)
+		cr.AddService(service)
 	case "deactivate", "pause":
-		carrier.RemoveService(service)
+		cr.RemoveService(service)
 	default:
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
-	if res := db.DB.Save(&carrier); res.Error != nil {
-		c.JSON(500, gin.H{"error": "Internal Server Error"})
+	if res := db.DB.Save(&cr); res.Error != nil {
+		c.Error(res.Error)
+		errors.ReturnWithError(c, carrier.ErrInternalServerError)
 		return
 	}
 

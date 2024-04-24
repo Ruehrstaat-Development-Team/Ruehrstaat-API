@@ -4,7 +4,9 @@ import (
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/logging"
+	"ruehrstaat-backend/services/carrier"
 
 	"github.com/gin-gonic/gin"
 )
@@ -38,8 +40,7 @@ func carrierTokenAuthMiddleware() gin.HandlerFunc {
 		if c.GetHeader("X-RST-User-Id") != "" {
 			token := auth.AuthenticateApiToken(c)
 			if token == nil {
-				c.JSON(401, gin.H{"error": "Unauthorized"})
-				c.Abort()
+				errors.MiddlewareAbortWithError(c, carrier.ErrUnauthorized)
 				return
 			}
 
@@ -47,8 +48,7 @@ func carrierTokenAuthMiddleware() gin.HandlerFunc {
 
 			user := &entities.User{}
 			if res := db.DB.Where("id = ?", &token.UserID).First(user); res.Error != nil {
-				c.JSON(401, gin.H{"error": "Unauthorized"})
-				c.Abort()
+				errors.MiddlewareAbortWithError(c, carrier.ErrUnauthorized)
 				return
 			}
 
@@ -56,8 +56,7 @@ func carrierTokenAuthMiddleware() gin.HandlerFunc {
 		} else {
 			current, authorized := auth.Authorize(c)
 			if !authorized {
-				c.JSON(401, gin.H{"error": "Unauthorized"})
-				c.Abort()
+				errors.MiddlewareAbortWithError(c, carrier.ErrUnauthorized)
 				return
 			}
 

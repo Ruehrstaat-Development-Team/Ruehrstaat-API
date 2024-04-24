@@ -87,3 +87,13 @@ func ReturnWithError(c *gin.Context, err *RstError) {
 		"name":  err.Nickname(),
 	})
 }
+
+func MiddlewareAbortWithError(c *gin.Context, err *RstError) {
+	c.Error(err)
+	c.JSON(err.HtmlCode(), gin.H{
+		"error": err.Message(),
+		"code":  err.Code(),
+		"name":  err.Nickname(),
+	})
+	c.Abort()
+}
