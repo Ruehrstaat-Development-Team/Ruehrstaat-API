@@ -6,6 +6,7 @@ import (
 	"net/smtp"
 	"os"
 
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/logging"
 	"ruehrstaat-backend/mailer/mails"
 	"ruehrstaat-backend/util"
@@ -22,7 +23,7 @@ func SendMail(receiver string, mail mails.Mail, locale string) {
 	}
 }
 
-func SendMailGraceful(receiver string, mail mails.Mail, locale string) error {
+func SendMailGraceful(receiver string, mail mails.Mail, locale string) *errors.RstError {
 	err := sendMail(receiver, mail, locale)
 
 	if err != nil {
@@ -47,7 +48,7 @@ func SendBulkMail(receivers []string, mail mails.Mail, locale string) {
 	}
 }
 
-func sendMail(toAddr string, mailTemplate mails.Mail, locale string) error {
+func sendMail(toAddr string, mailTemplate mails.Mail, locale string) *errors.RstError {
 	if os.Getenv("SMTP_DISABLED") == "true" {
 		return nil
 	}
@@ -56,7 +57,7 @@ func sendMail(toAddr string, mailTemplate mails.Mail, locale string) error {
 
 	if err != nil {
 		log.Println("Failed to parse from address")
-		return err
+		return errors.NewFromError(err)
 	}
 
 	to := mail.Address{Address: toAddr, Name: ""}
@@ -83,7 +84,7 @@ func sendMail(toAddr string, mailTemplate mails.Mail, locale string) error {
 	measure.BeginBreakpoint("Dial")
 	client, err := smtp.Dial(host + ":" + port)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 	measure.EndBreakpoint("Dial")
 
@@ -93,38 +94,38 @@ func sendMail(toAddr string, mailTemplate mails.Mail, locale string) error {
 
 	measure.BeginBreakpoint("Sending")
 	if err = client.Auth(auth); err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 	if err = client.Mail(from.Address); err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	if err = client.Rcpt(to.Address); err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	w, err := client.Data()
 
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	_, err = w.Write(msg)
 
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	err = w.Close()
 
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	err = client.Quit()
 
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	measure.EndBreakpoint("Sending")

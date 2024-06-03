@@ -1,7 +1,7 @@
 package entities
 
 import (
-	"errors"
+	"ruehrstaat-backend/errors"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -62,7 +62,7 @@ func (c *Carrier) BeforeSave(tx *gorm.DB) (err error) {
 }
 
 // set DockingAccess from string
-func (c *Carrier) SetDockingAccess(access string) error {
+func (c *Carrier) SetDockingAccess(access string) *errors.RstError {
 	switch CarrierDockingAccess(access) {
 	case DockingAccessAll, DockingAccessNone, DockingAccessFriends, DockingAccessSquadron, DockingAccessSquadronAndFriends:
 		c.DockingAccess = CarrierDockingAccess(access)
@@ -73,7 +73,7 @@ func (c *Carrier) SetDockingAccess(access string) error {
 }
 
 // set Category from string
-func (c *Carrier) SetCategory(category string) error {
+func (c *Carrier) SetCategory(category string) *errors.RstError {
 	switch CarrierCategory(category) {
 	case CarrierCategoryOther, CarrierCategoryFlagship, CarrierCategoryFreighter, CarrierCategorySupportVessel:
 		c.Category = CarrierCategory(category)
@@ -93,7 +93,7 @@ func (c *Carrier) HasService(service CarrierService) bool {
 }
 
 // set servies from string array (have a bool to override existing services)
-func (c *Carrier) SetServices(services []string, override bool) error {
+func (c *Carrier) SetServices(services []string, override bool) *errors.RstError {
 	if override {
 		c.Services = []CarrierService{}
 	}
@@ -216,8 +216,20 @@ const (
 
 // errors
 
+var ErrPackageCarrierEntity = errors.NewPackage("CarrierEntity", "CE")
+
+// codes
+// 1xxx - invalid something
+// 2xxx - not found
+// 3xxx - already done / exists
+// 4xxx - forbidden
+// 5xxx - server error
+
+// 9xxx - other
+// 9999 - unknown error
+
 var (
-	InvalidDockingAccessError = errors.New("Invalid Docking Access provided")
-	InvalidCategoryError      = errors.New("Invalid Category provided")
-	InvalidServiceError       = errors.New("Invalid Service provided")
+	InvalidDockingAccessError = errors.New(1001, *ErrPackageCarrierEntity, 400, "", "Invalid Docking Access provided")
+	InvalidCategoryError      = errors.New(1002, *ErrPackageCarrierEntity, 400, "", "Invalid Category provided")
+	InvalidServiceError       = errors.New(1003, *ErrPackageCarrierEntity, 400, "", "Invalid Service provided")
 )

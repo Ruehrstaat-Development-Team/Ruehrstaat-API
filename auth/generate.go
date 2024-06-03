@@ -3,13 +3,14 @@ package auth
 import (
 	"log"
 	"os"
+	"ruehrstaat-backend/errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, error) {
+func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, *errors.RstError) {
 	rexp := int64(0)
 	if absoluteExpiration != nil {
 		rexp = *absoluteExpiration
@@ -39,7 +40,7 @@ func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, error
 	}, nil
 }
 
-func generateToken(secret string, sub string, exp int64) (string, error) {
+func generateToken(secret string, sub string, exp int64) (string, *errors.RstError) {
 	currTime := time.Now().Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"iss": "Ruehrstaat Auth",
@@ -51,10 +52,14 @@ func generateToken(secret string, sub string, exp int64) (string, error) {
 		"jti": uuid.New().String(),
 	})
 
-	return token.SignedString([]byte(secret))
+	val, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return "", errors.NewFromError(err)
+	}
+	return val, nil
 }
 
-func generateCustomToken(subject string, aud string, hoursExp int) (string, error) {
+func generateCustomToken(subject string, aud string, hoursExp int) (string, *errors.RstError) {
 	currTime := time.Now().Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"iss": "Ruehrstaat Auth",
@@ -66,7 +71,11 @@ func generateCustomToken(subject string, aud string, hoursExp int) (string, erro
 		"jti": uuid.New().String(),
 	})
 
-	return token.SignedString([]byte(getIdentityTokenSecret()))
+	val, err := token.SignedString([]byte(getIdentityTokenSecret()))
+	if err != nil {
+		return "", errors.NewFromError(err)
+	}
+	return val, nil
 }
 
 func getIdentityTokenSecret() string {

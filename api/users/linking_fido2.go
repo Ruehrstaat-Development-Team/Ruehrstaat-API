@@ -1,10 +1,10 @@
 package users
 
 import (
-	"errors"
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
@@ -14,7 +14,7 @@ func beginFido2Link(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
@@ -36,14 +36,13 @@ func endFido2Link(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	state := c.Query("state")
 	if state == "" {
-		c.Error(errors.New("state is missing"))
-		c.JSON(400, gin.H{"error": "State is missing"})
+		errors.ReturnWithError(c, auth.ErrStateIsMissing)
 		return
 	}
 
@@ -66,14 +65,13 @@ func unlinkFido2(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	name := c.Param("name")
 	if name == "" {
-		c.Error(errors.New("name is missing"))
-		c.JSON(400, gin.H{"error": "Name is missing"})
+		errors.ReturnWithError(c, auth.ErrFidoNameIsMissing)
 		return
 	}
 
@@ -90,7 +88,7 @@ func getFido2Links(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 

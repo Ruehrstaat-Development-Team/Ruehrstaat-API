@@ -1,12 +1,12 @@
 package users
 
 import (
-	"errors"
 	"ruehrstaat-backend/api/dtoerr"
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/cache"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/mailer"
 
 	"ruehrstaat-backend/services/locale"
@@ -20,34 +20,30 @@ func activateUser(c *gin.Context) {
 	userIdStr := c.Param("id")
 	userId, err := uuid.Parse(userIdStr)
 	if err != nil {
-		c.Error(dtoerr.InvalidId)
-		c.JSON(400, gin.H{"error": "Invalid user id"})
+		errors.ReturnWithError(c, dtoerr.InvalidId)
 		return
 	}
 
 	activationToken := c.Query("activation")
 	if activationToken == "" {
-		c.Error(errors.New("no activation token provided"))
-		c.JSON(400, gin.H{"error": "No activation token provided"})
+		errors.ReturnWithError(c, auth.ErrInvalidActivationToken)
 		return
 	}
 
 	if err := auth.ActivateAccount(userId, activationToken); err != nil {
 		if err == auth.ErrUserNotFound {
 			c.Error(err)
-			c.JSON(404, gin.H{"error": "User not found"})
+			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
 
 		if err == auth.ErrInvalidActivationToken {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid activation token"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 
 		if err == auth.ErrUserAlreadyActivated {
-			c.Error(err)
-			c.JSON(409, gin.H{"error": "User is already activated"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 
@@ -61,15 +57,13 @@ func activateUser(c *gin.Context) {
 func resendUserActivation(c *gin.Context) {
 	activateState := c.Query("state")
 	if activateState == "" {
-		c.Error(errors.New("no activation state provided"))
-		c.JSON(400, gin.H{"error": "No activation state provided"})
+		errors.ReturnWithError(c, auth.ErrNoActivationState)
 		return
 	}
 
 	var userId *uuid.UUID
 	if ok := cache.EndState("resend_activate", activateState, &userId); !ok {
-		c.Error(errors.New("invalid activation state"))
-		c.JSON(400, gin.H{"error": "Invalid activation state"})
+		errors.ReturnWithError(c, auth.ErrInvalidActivationState)
 		return
 	}
 
@@ -77,7 +71,7 @@ func resendUserActivation(c *gin.Context) {
 	if res := db.DB.Where("id = ?", userId).First(user); res.Error != nil {
 		if res.Error == gorm.ErrRecordNotFound {
 			c.Error(res.Error)
-			c.JSON(404, gin.H{"error": "User not found"})
+			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
 
@@ -96,8 +90,7 @@ func resendUserActivation(c *gin.Context) {
 func requestPasswordReset(c *gin.Context) {
 	email := c.Query("email")
 	if email == "" {
-		c.Error(errors.New("no email provided"))
-		c.JSON(400, gin.H{"error": "No email provided"})
+		errors.ReturnWithError(c, auth.ErrInvalidEmail)
 		return
 	}
 
@@ -106,7 +99,7 @@ func requestPasswordReset(c *gin.Context) {
 		if res.Error == gorm.ErrRecordNotFound {
 			c.Error(res.Error)
 			c.Error(auth.ErrUserNotFound)
-			c.JSON(404, gin.H{"error": "User not found"})
+			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
 
@@ -125,22 +118,19 @@ func requestPasswordReset(c *gin.Context) {
 func resetPassword(c *gin.Context) {
 	userIDStr := c.Param("id")
 	if userIDStr == "" {
-		c.Error(dtoerr.NoIdProvided)
-		c.JSON(400, gin.H{"error": "No user id provided"})
+		errors.ReturnWithError(c, dtoerr.InvalidId)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.Error(dtoerr.InvalidId)
-		c.JSON(400, gin.H{"error": "Invalid user id"})
+		errors.ReturnWithError(c, dtoerr.InvalidId)
 		return
 	}
 
 	token := c.Query("ret")
 	if token == "" {
-		c.Error(errors.New("no reset token provided"))
-		c.JSON(400, gin.H{"error": "No reset token provided"})
+		errors.ReturnWithError(c, auth.ErrInvalidResetToken)
 		return
 	}
 
@@ -150,27 +140,25 @@ func resetPassword(c *gin.Context) {
 	}{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	if err := auth.ResetPassword(userID, token, dto.Password, dto.Otp); err != nil {
 		if err == auth.ErrInvalidResetToken {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid reset token"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 
 		if err == auth.ErrUserNotFound {
 			c.Error(err)
-			c.JSON(404, gin.H{"error": "User not found"})
+			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
 
 		if err == auth.ErrUserOtpWrong {
 			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid OTP"})
+			errors.ReturnWithError(c, auth.ErrUserOtpWrong)
 			return
 		}
 
@@ -183,7 +171,7 @@ func changePassword(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
@@ -194,21 +182,18 @@ func changePassword(c *gin.Context) {
 	}{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	if err := auth.ChangePassword(user, dto.OldPassword, dto.NewPassword, dto.Otp); err != nil {
 		if err == auth.ErrInvalidCredentials {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid credentials"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 
 		if err == auth.ErrUserOtpWrong {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid OTP"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 
@@ -228,43 +213,36 @@ func requestEmailChange(c *gin.Context) {
 	emailChangeDto := changeEmailBody{}
 	if err := c.ShouldBindJSON(&emailChangeDto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	if user.Email == emailChangeDto.NewEmail {
-		c.Error(errors.New("new email is same as current email"))
-		c.JSON(400, gin.H{"error": "New email is same as current email"})
+		errors.ReturnWithError(c, auth.ErrEmailDidNotChange)
 		return
 	}
 
 	err := auth.InitiateEmailChange(user, emailChangeDto.NewEmail, emailChangeDto.Password, emailChangeDto.Otp)
 	if err != nil {
 		if err == auth.ErrInvalidEmail {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid email"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 		if err == auth.ErrInvalidCredentials {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid credentials"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 		if err == auth.ErrUserOtpMissing {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "OTP is missing"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 		if err == auth.ErrUserOtpWrong {
-			c.Error(err)
-			c.JSON(400, gin.H{"error": "Invalid OTP"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 
 		if err == mailer.ErrFailedToSendEmail {
-			c.Error(err)
-			c.JSON(500, gin.H{"error": "Failed to send email"})
+			errors.ReturnWithError(c, err)
 			return
 		}
 		c.Error(err)
@@ -274,7 +252,7 @@ func requestEmailChange(c *gin.Context) {
 	// save user
 	if res := db.DB.Save(user); res.Error != nil {
 		c.Error(res.Error)
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		errors.ReturnWithError(c, auth.ErrServer)
 		panic(res.Error)
 	}
 	c.JSON(200, gin.H{"message": "Email change token sent successfully"})
@@ -289,15 +267,13 @@ func setLocale(c *gin.Context) {
 	// get locale query param
 	localeStr := c.Query("locale")
 	if localeStr == "" {
-		c.Error(errors.New("no locale provided"))
-		c.JSON(400, gin.H{"error": "No locale provided"})
+		errors.ReturnWithError(c, auth.ErrInvalidLocale)
 		return
 	}
 
 	// check if locale is valid
 	if !locale.DoesLocaleExist(localeStr) {
-		c.Error(errors.New("invalid locale"))
-		c.JSON(400, gin.H{"error": "Invalid locale"})
+		errors.ReturnWithError(c, auth.ErrInvalidLocale)
 		return
 	}
 
@@ -305,8 +281,7 @@ func setLocale(c *gin.Context) {
 
 	if res := db.DB.Save(user); res.Error != nil {
 		c.Error(res.Error)
-		c.Error(errors.New("failed to save user to db"))
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		errors.ReturnWithError(c, auth.ErrServer)
 		return
 	}
 

@@ -10,3 +10,4 @@ main.exe
 
 backend.log
 prod-docker-compose.yml
+.env.live

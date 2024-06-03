@@ -1,11 +1,11 @@
 package users
 
 import (
-	"errors"
 	"ruehrstaat-backend/api/dtoerr"
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/util"
 
 	"github.com/gin-gonic/gin"
@@ -17,13 +17,12 @@ func beginTotp(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	if user.OtpActive {
-		c.Error(errors.New("TOTP is already active"))
-		c.JSON(400, gin.H{"error": "TOTP is already active"})
+		errors.ReturnWithError(c, auth.ErrOTPAlreadySet)
 		return
 	}
 
@@ -52,19 +51,17 @@ func verifyTotp(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	if !user.OtpActive {
-		c.Error(errors.New("TOTP is not active"))
-		c.JSON(400, gin.H{"error": "TOTP is not active"})
+		errors.ReturnWithError(c, auth.ErrOTPIsNotSet)
 		return
 	}
 
 	if user.OtpVerified {
-		c.Error(errors.New("TOTP is already verified"))
-		c.JSON(400, gin.H{"error": "TOTP is already verified"})
+		errors.ReturnWithError(c, auth.ErrOTPAlreadyVerified)
 		return
 	}
 
@@ -73,14 +70,12 @@ func verifyTotp(c *gin.Context) {
 	}{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	if !totp.Validate(dto.Code, *user.OtpSecret) {
-		c.Error(errors.New("invalid code"))
-		c.JSON(403, gin.H{"error": "Invalid code"})
+		errors.ReturnWithError(c, auth.ErrInvalidOTPCode)
 		return
 	}
 
@@ -89,7 +84,6 @@ func verifyTotp(c *gin.Context) {
 
 	if res := db.DB.Save(user); res.Error != nil {
 		c.Error(res.Error)
-		c.Error(errors.New("failed to save user to db"))
 		panic(res.Error)
 	}
 
@@ -118,19 +112,17 @@ func disableTotp(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	if !user.OtpActive {
-		c.Error(errors.New("TOTP is not active"))
-		c.JSON(400, gin.H{"error": "TOTP is not active"})
+		errors.ReturnWithError(c, auth.ErrOTPIsNotSet)
 		return
 	}
 
 	if !user.OtpVerified {
-		c.Error(errors.New("TOTP is not verified"))
-		c.JSON(400, gin.H{"error": "TOTP is not verified"})
+		errors.ReturnWithError(c, auth.ErrOTPIsNotVerified)
 		return
 	}
 
@@ -139,16 +131,14 @@ func disableTotp(c *gin.Context) {
 	}{}
 	if err := c.ShouldBindJSON(dto); err != nil {
 		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
-		c.JSON(400, gin.H{"error": "Given data is invalid"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
 	if !totp.Validate(dto.Code, *user.OtpSecret) {
 		if err := auth.TryBackupCodes(user, &dto.Code); err != nil {
 			c.Error(err)
-			c.Error(errors.New("invalid code"))
-			c.JSON(403, gin.H{"error": "Invalid code"})
+			errors.ReturnWithError(c, auth.ErrInvalidOTPCode)
 			return
 		}
 	}
@@ -170,19 +160,17 @@ func requestUrlForVerification(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	if !user.OtpActive {
-		c.Error(errors.New("TOTP is not active"))
-		c.JSON(400, gin.H{"error": "TOTP is not active"})
+		errors.ReturnWithError(c, auth.ErrOTPIsNotSet)
 		return
 	}
 
 	if user.OtpVerified {
-		c.Error(errors.New("TOTP is already verified"))
-		c.JSON(400, gin.H{"error": "TOTP is already verified"})
+		errors.ReturnWithError(c, auth.ErrOTPAlreadyVerified)
 		return
 	}
 
@@ -210,21 +198,19 @@ func requestUrlForVerification(c *gin.Context) {
 func removeTotp(c *gin.Context) {
 	if _, ok := auth.AutoAuthorizeAdmin(c); !ok {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	user := &entities.User{}
 	if res := db.DB.First(user, c.Param("id")); res.Error != nil {
 		c.Error(res.Error)
-		c.Error(errors.New("user not found"))
-		c.JSON(404, gin.H{"error": "User not found"})
+		errors.ReturnWithError(c, auth.ErrUserNotFound)
 		return
 	}
 
 	if !user.OtpActive {
-		c.Error(errors.New("TOTP is not active"))
-		c.JSON(400, gin.H{"error": "TOTP is not active"})
+		errors.ReturnWithError(c, auth.ErrOTPIsNotSet)
 		return
 	}
 

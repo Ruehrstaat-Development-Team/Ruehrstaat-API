@@ -1,17 +1,17 @@
 package users
 
 import (
-	"errors"
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/serialize"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func findUser(current *entities.User, userIdStr string) (*entities.User, error) {
+func findUser(current *entities.User, userIdStr string) (*entities.User, *errors.RstError) {
 	user := &entities.User{}
 
 	if userIdStr != "@me" {
@@ -33,22 +33,19 @@ func getUser(c *gin.Context) {
 	current := auth.Extract(c)
 	if current == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 	user, err := findUser(current, c.Param("id"))
 	if user != nil && user.ID != current.ID && !current.IsAdmin {
-		c.Error(errors.New("user not owned by requester"))
-		c.JSON(403, gin.H{"error": "Forbidden"})
+		errors.ReturnWithError(c, auth.ErrForbidden)
 		return
 	}
 	if err == auth.ErrInvalidUUID {
-		c.Error(err)
-		c.JSON(400, gin.H{"error": "Invalid user id"})
+		errors.ReturnWithError(c, err)
 		return
 	} else if err == auth.ErrUserNotFound {
-		c.Error(err)
-		c.JSON(404, gin.H{"error": "User not found"})
+		errors.ReturnWithError(c, err)
 		return
 	}
 

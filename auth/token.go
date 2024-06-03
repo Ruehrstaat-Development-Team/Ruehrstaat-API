@@ -3,6 +3,7 @@ package auth
 import (
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/util"
 	"time"
 
@@ -96,16 +97,16 @@ func checkTokenExpired(token *entities.ApiToken) bool {
 	return token.IsRevoked
 }
 
-func RegisterAPIToken(user *entities.User) (*entities.ApiToken, string, error) {
+func RegisterAPIToken(user *entities.User) (*entities.ApiToken, string, *errors.RstError) {
 	// generate 64 char token
 	tokenClear, err := util.GenerateRandomString(64)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.NewFromError(err)
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(tokenClear), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.NewFromError(err)
 	}
 
 	apiToken := &entities.ApiToken{
@@ -121,7 +122,7 @@ func RegisterAPIToken(user *entities.User) (*entities.ApiToken, string, error) {
 	}
 
 	if res := db.DB.Create(apiToken); res.Error != nil {
-		return nil, "", res.Error
+		return nil, "", errors.NewDBErrorFromError(res.Error)
 	}
 
 	return apiToken, tokenClear, nil

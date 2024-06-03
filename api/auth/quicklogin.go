@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"ruehrstaat-backend/api/dtoerr"
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,7 +14,7 @@ func requestQuickLoginToken(c *gin.Context) {
 	token, sessionId, err := auth.RequestQuickLoginToken()
 	if err != nil {
 		c.Error(err)
-		c.JSON(400, gin.H{"error": "Could not request quick login token"})
+		errors.ReturnWithError(c, auth.ErrQuickloginTokenRequestFailed)
 	}
 
 	c.JSON(200, gin.H{"token": token, "sessionId": sessionId})
@@ -25,13 +27,13 @@ type verifyQuickLoginTokenDTO struct {
 func verifyQuickLoginToken(c *gin.Context) {
 	user, authorized := auth.AutoAuthorize(c)
 	if !authorized {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	verifyDTO := verifyQuickLoginTokenDTO{}
 	if err := c.ShouldBindJSON(&verifyDTO); err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
@@ -40,7 +42,7 @@ func verifyQuickLoginToken(c *gin.Context) {
 	err := auth.VerifyQuickLoginToken(token, user)
 	if err != nil {
 		c.Error(err)
-		c.JSON(400, gin.H{"error": "Could not verify quick login token"})
+		errors.ReturnWithError(c, auth.ErrQuickloginTokenValidationFailed)
 		return
 	}
 
@@ -55,7 +57,7 @@ type completeQuickLoginDTO struct {
 func completeQuickLogin(c *gin.Context) {
 	dto := completeQuickLoginDTO{}
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
@@ -65,26 +67,33 @@ func completeQuickLogin(c *gin.Context) {
 	userId, err := auth.CompleteQuickLogin(token, sessionID)
 	if err != nil {
 		c.Error(err)
-		c.JSON(400, gin.H{"error": "Could not complete quick login"})
+		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
 		return
 	}
 
 	var user entities.User
 	if res := db.DB.Where("id = ?", userId).First(&user); res.Error != nil {
 		c.Error(res.Error)
-		c.JSON(500, gin.H{"error": "Could not complete quick login"})
+		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
 		return
 	}
 
 	if err := auth.CheckUserLoginAllowance(&user); err != nil {
-		c.JSON(400, gin.H{"error": "Could not complete quick login - user not allowed"})
+		c.Error(err)
+		if err == auth.ErrUserBanned {
+			errors.ReturnWithError(c, auth.ErrUserBanned)
+		} else if err == auth.ErrUserNotActivated {
+			errors.ReturnWithError(c, auth.ErrUserNotActivated)
+		} else {
+			errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
+		}
 		return
 	}
 
 	jwttoken, err := auth.CreateTokenPairForUser(&user)
 	if err != nil {
 		c.Error(err)
-		c.JSON(400, gin.H{"error": "Could not complete quick login"})
+		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
 		return
 	}
 

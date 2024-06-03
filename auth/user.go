@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/mailer"
 	"ruehrstaat-backend/mailer/mails"
 	"ruehrstaat-backend/util"
@@ -18,7 +19,7 @@ import (
 // Creates a new user with the given email and password.
 // If the email is already taken, an error is returned.
 // The password will be hashed before storing it in the database.
-func Register(email string, password string, nickname string, cmdrName string, asAdmin bool) error {
+func Register(email string, password string, nickname string, cmdrName string, asAdmin bool) *errors.RstError {
 	if !util.IsEmailValid(email) || burner.IsBurnerEmail(email) {
 		return ErrInvalidEmail
 	}
@@ -27,7 +28,7 @@ func Register(email string, password string, nickname string, cmdrName string, a
 
 	if res := db.DB.Where("email = ?", email).Limit(1).Find(existing); res.Error != nil {
 		if res.Error != gorm.ErrRecordNotFound {
-			return res.Error
+			return errors.NewDBErrorFromError(res.Error)
 		}
 	}
 
@@ -37,7 +38,7 @@ func Register(email string, password string, nickname string, cmdrName string, a
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	user := &entities.User{
@@ -50,12 +51,12 @@ func Register(email string, password string, nickname string, cmdrName string, a
 	}
 
 	if res := db.DB.Create(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	if !asAdmin {
 		if err := GenerateActivationToken(user); err != nil {
-			return err
+			return errors.NewFromError(err)
 		}
 	}
 
@@ -65,16 +66,16 @@ func Register(email string, password string, nickname string, cmdrName string, a
 // Generates a new 3-day expiration activation token for the given user.
 // The activation token is used to activate the user's account.
 // It is sent to the user's email address.
-func GenerateActivationToken(user *entities.User) error {
+func GenerateActivationToken(user *entities.User) *errors.RstError {
 	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron Account Activation", 72)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	user.ActivationToken = &token
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	mailer.SendMail(user.Email, mails.ActivationMail{
@@ -88,10 +89,10 @@ func GenerateActivationToken(user *entities.User) error {
 
 // Activates the account with the given user ID and token.
 // If the token is invalid, an error is returned.
-func ActivateAccount(userID uuid.UUID, token string) error {
+func ActivateAccount(userID uuid.UUID, token string) *errors.RstError {
 	unescaped, err := url.QueryUnescape(token)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	decoded, err := decodeToken(getIdentityTokenSecret(), unescaped)
@@ -121,22 +122,22 @@ func ActivateAccount(userID uuid.UUID, token string) error {
 	user.ActivationToken = nil
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	return nil
 }
 
-func GenerateResetPasswordToken(user *entities.User) error {
+func GenerateResetPasswordToken(user *entities.User) *errors.RstError {
 	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron Account Passwort Reset", 1)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	user.PasswordResetToken = &token
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	mailer.SendMail(user.Email, mails.PasswordResetMail{
@@ -148,10 +149,10 @@ func GenerateResetPasswordToken(user *entities.User) error {
 	return nil
 }
 
-func ResetPassword(userID uuid.UUID, token string, password string, otp *string) error {
+func ResetPassword(userID uuid.UUID, token string, password string, otp *string) *errors.RstError {
 	unescaped, err := url.QueryUnescape(token)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	decoded, err := decodeToken(getIdentityTokenSecret(), unescaped)
@@ -195,20 +196,20 @@ func ResetPassword(userID uuid.UUID, token string, password string, otp *string)
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	user.Password = string(hashed)
 	user.PasswordResetToken = nil
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	return nil
 }
 
-func ChangePassword(user *entities.User, oldPassword string, newPassword string, otp *string) error {
+func ChangePassword(user *entities.User, oldPassword string, newPassword string, otp *string) *errors.RstError {
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
 		return ErrInvalidCredentials
 	}
@@ -227,13 +228,13 @@ func ChangePassword(user *entities.User, oldPassword string, newPassword string,
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	user.Password = string(hashed)
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewFromError(res.Error)
 	}
 
 	return nil
@@ -242,7 +243,7 @@ func ChangePassword(user *entities.User, oldPassword string, newPassword string,
 // Generates a new 3-day expiration activation token for the given user.
 // The activation token is used to activate the user's account.
 // It is sent to the user's email address.
-func GenerateEmailChangeToken(user *entities.User) error {
+func GenerateEmailChangeToken(user *entities.User) *errors.RstError {
 	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron email change", 72)
 	if err != nil {
 		return err
@@ -251,7 +252,7 @@ func GenerateEmailChangeToken(user *entities.User) error {
 	user.EmailChangeToken = &token
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewFromError(res.Error)
 	}
 
 	err = mailer.SendMailGraceful(user.Email, mails.ChangeEmailMail{
@@ -267,7 +268,7 @@ func GenerateEmailChangeToken(user *entities.User) error {
 	return nil
 }
 
-func InitiateEmailChange(user *entities.User, newEmail string, password string, otp *string) error {
+func InitiateEmailChange(user *entities.User, newEmail string, password string, otp *string) *errors.RstError {
 	if !util.IsEmailValid(newEmail) || burner.IsBurnerEmail(newEmail) {
 		return ErrInvalidEmail
 	}
@@ -298,10 +299,10 @@ func InitiateEmailChange(user *entities.User, newEmail string, password string, 
 	return nil
 }
 
-func ChangeEmail(user *entities.User, token string) error {
+func ChangeEmail(user *entities.User, token string) *errors.RstError {
 	unescaped, err := url.QueryUnescape(token)
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	decoded, err := decodeToken(getIdentityTokenSecret(), unescaped)
@@ -326,7 +327,7 @@ func ChangeEmail(user *entities.User, token string) error {
 	user.EmailChangeToken = nil
 
 	if res := db.DB.Save(user); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	return nil

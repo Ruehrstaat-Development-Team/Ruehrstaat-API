@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"ruehrstaat-backend/errors"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -10,7 +12,7 @@ type decodedToken struct {
 	ExpiresAt int64
 }
 
-func decodeToken(secret string, tokenString string) (*decodedToken, error) {
+func decodeToken(secret string, tokenString string) (*decodedToken, *errors.RstError) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrInvalidSigningMethod
@@ -20,7 +22,7 @@ func decodeToken(secret string, tokenString string) (*decodedToken, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.NewFromError(err)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
@@ -36,7 +38,7 @@ func decodeToken(secret string, tokenString string) (*decodedToken, error) {
 
 		subject, err := uuid.Parse(subClaim.(string))
 		if err != nil {
-			return nil, err
+			return nil, errors.NewFromError(err)
 		}
 
 		return &decodedToken{

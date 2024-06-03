@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"errors"
 	"os"
 	"ruehrstaat-backend/cache"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"strings"
 	"time"
 
@@ -36,7 +36,7 @@ func InitializeWebauthn() {
 	}
 }
 
-func BeginFido2Register(user *entities.User, displayName string) (string, *protocol.CredentialCreation, error) {
+func BeginFido2Register(user *entities.User, displayName string) (string, *protocol.CredentialCreation, *errors.RstError) {
 	fidoLogin := &entities.Fido2Login{
 		UserID:      user.ID,
 		DisplayName: displayName,
@@ -46,7 +46,7 @@ func BeginFido2Register(user *entities.User, displayName string) (string, *proto
 
 	options, session, err := authnClient.BeginRegistration(fidoLogin, webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired))
 	if err != nil {
-		return "", nil, err
+		return "", nil, errors.NewAuthErrorFromError(err)
 	}
 
 	payload := &registerCachePayload{
@@ -58,61 +58,61 @@ func BeginFido2Register(user *entities.User, displayName string) (string, *proto
 	return state, options, nil
 }
 
-func FinishFido2Register(state string, user *entities.User, pcc *protocol.ParsedCredentialCreationData) error {
+func FinishFido2Register(state string, user *entities.User, pcc *protocol.ParsedCredentialCreationData) *errors.RstError {
 	payload := &registerCachePayload{}
 	if !cache.EndState("fido2_register", state, payload) {
-		return errors.New("invalid state")
+		return ErrInvalidState
 	}
 
 	credential, err := authnClient.CreateCredential(payload.User, *payload.Session, pcc)
 	if err != nil {
-		return err
+		return errors.NewAuthErrorFromError(err)
 	}
 
 	fidoLogin := payload.User
 	fidoLogin.Data, err = jsoniter.MarshalToString(credential)
 
 	if err != nil {
-		return err
+		return errors.NewFromError(err)
 	}
 
 	if res := db.DB.Model(fidoLogin).Save(fidoLogin); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	return nil
 }
 
-func DeleteFido2Login(user *entities.User, userID uuid.UUID, displayName string) error {
+func DeleteFido2Login(user *entities.User, userID uuid.UUID, displayName string) *errors.RstError {
 	if res := db.DB.Where("user_id = ? AND display_name = ?", userID, displayName).Delete(&entities.Fido2Login{}); res.Error != nil {
-		return res.Error
+		return errors.NewDBErrorFromError(res.Error)
 	}
 
 	return nil
 }
 
-func BeginFido2Login() (string, *protocol.CredentialAssertion, error) {
+func BeginFido2Login() (string, *protocol.CredentialAssertion, *errors.RstError) {
 	options, sessions, err := authnClient.BeginDiscoverableLogin()
 	if err != nil {
-		return "", nil, err
+		return "", nil, errors.NewAuthErrorFromError(err)
 	}
 
 	state := cache.BeginState("fido2_login", sessions, time.Minute*5)
 	return state, options, nil
 }
 
-func FinishFido2Login(state string, pcc *protocol.ParsedCredentialAssertionData) (*entities.User, error) {
+func FinishFido2Login(state string, pcc *protocol.ParsedCredentialAssertionData) (*entities.User, *errors.RstError) {
 	session := &webauthn.SessionData{}
 	if !cache.EndState("fido2_login", state, session) {
-		return nil, errors.New("invalid state")
+		return nil, ErrInvalidState
 	}
 
 	if session.UserID != nil {
-		return nil, errors.New("invalid session")
+		return nil, ErrInvalidSession
 	}
 
 	if pcc.Response.UserHandle == nil {
-		return nil, errors.New("invalid user handle")
+		return nil, ErrInvalidUserHandle
 	}
 
 	login, err := discoverLogin(pcc.Response.UserHandle)
@@ -122,19 +122,19 @@ func FinishFido2Login(state string, pcc *protocol.ParsedCredentialAssertionData)
 
 	session.UserID = login.WebAuthnID()
 
-	if _, err = authnClient.ValidateLogin(login, *session, pcc); err != nil {
-		return nil, err
+	if _, err2 := authnClient.ValidateLogin(login, *session, pcc); err != nil {
+		return nil, errors.NewAuthErrorFromError(err2)
 	}
 
 	user := &entities.User{}
 	if res := db.DB.Where("id = ?", login.UserID).First(user); res.Error != nil {
-		return nil, res.Error
+		return nil, errors.NewDBErrorFromError(res.Error)
 	}
 
 	return user, nil
 }
 
-func discoverLogin(userHandle []byte) (*entities.Fido2Login, error) {
+func discoverLogin(userHandle []byte) (*entities.Fido2Login, *errors.RstError) {
 	userHandleStr := string(userHandle)
 	parts := strings.Split(userHandleStr, ":")
 
@@ -143,7 +143,7 @@ func discoverLogin(userHandle []byte) (*entities.Fido2Login, error) {
 
 	var user entities.Fido2Login
 	if res := db.DB.Where("user_id = ? AND display_name = ?", userID, displayName).First(&user); res.Error != nil {
-		return nil, res.Error
+		return nil, errors.NewDBErrorFromError(res.Error)
 	}
 
 	return &user, nil
