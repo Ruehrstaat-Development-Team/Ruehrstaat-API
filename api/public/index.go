@@ -13,5 +13,5 @@ func RegisterRoutes(api *gin.RouterGroup) {
 
 	publicCarrierApi := publicApi.Group("/carrier")
 	publicCarrierApi.GET("/:id", publicGetCarrier)
-
+	publicCarrierApi.GET("/", publicGetAllCarriers)
 }
