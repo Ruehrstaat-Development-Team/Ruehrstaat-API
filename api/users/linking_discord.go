@@ -1,7 +1,6 @@
 package users
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"ruehrstaat-backend/auth"
@@ -9,6 +8,7 @@ import (
 	"ruehrstaat-backend/cache"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,13 +18,12 @@ func beginDiscordLink(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	if user.DiscordId != nil {
-		c.Error(errors.New("discord is already linked"))
-		c.JSON(400, gin.H{"error": "Discord is already linked"})
+		errors.ReturnWithError(c, auth.ErrDiscordAlreadyLinked)
 		return
 	}
 
@@ -53,15 +52,13 @@ func beginDiscordLink(c *gin.Context) {
 func discordLinkCallback(c *gin.Context) {
 	state := c.Query("state")
 	if state == "" {
-		c.Error(errors.New("state is missing"))
-		c.JSON(400, gin.H{"error": "State is missing"})
+		errors.ReturnWithError(c, auth.ErrStateIsMissing)
 		return
 	}
 
 	code := c.Query("code")
 	if code == "" {
-		c.Error(errors.New("code is missing"))
-		c.JSON(400, gin.H{"error": "Code is missing"})
+		errors.ReturnWithError(c, auth.ErrCodeIsMissing)
 		return
 	}
 
@@ -71,8 +68,7 @@ func discordLinkCallback(c *gin.Context) {
 		CodeVerifier string `json:"code_verifier"`
 	}{}
 	if !cache.EndState("user_discord_link", state, &payload) {
-		c.Error(errors.New("invalid state"))
-		c.JSON(400, gin.H{"error": "Invalid state"})
+		errors.ReturnWithError(c, auth.ErrInvalidState)
 		return
 	}
 
@@ -106,13 +102,12 @@ func unlinkDiscord(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
 		c.Error(auth.ErrInvalidToken)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
 
 	if user.DiscordId == nil {
-		c.Error(errors.New("discord is not linked"))
-		c.JSON(400, gin.H{"error": "Discord is not linked"})
+		errors.ReturnWithError(c, auth.ErrDiscordNotLinked)
 		return
 	}
 

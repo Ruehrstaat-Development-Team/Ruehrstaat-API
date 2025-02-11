@@ -1,7 +1,9 @@
 package mailer
 
-import "errors"
+import "ruehrstaat-backend/errors"
+
+var ErrPackageMailer = errors.NewPackage("Mailer", "Mail")
 
 var (
-	ErrFailedToSendEmail = errors.New("failed to send email")
+	ErrFailedToSendEmail = errors.New(5001, *ErrPackageMailer, 500, "", "Failed to send email")
 )

@@ -3,7 +3,9 @@ package carrier
 import (
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/serialize"
+	"ruehrstaat-backend/services/carrier"
 	"strconv"
 	"time"
 
@@ -23,13 +25,15 @@ func getAllCarriers(c *gin.Context) {
 
 	if user.IsAdmin || (token != nil && token.HasFullReadAccess) {
 		if res := db.DB.Find(&carriers).Preload("Owner"); res.Error != nil {
-			c.JSON(500, gin.H{"error": "Internal Server Error"})
+			c.Error(res.Error)
+			errors.ReturnWithError(c, carrier.ErrInternalServerError)
 			return
 		}
 	} else {
 		// get carrier where owner id is user id
 		if res := db.DB.Where("owner_id = ?", user.ID).Preload("Owner").Find(&carriers); res.Error != nil {
-			c.JSON(500, gin.H{"error": "Internal Server Error"})
+			c.Error(res.Error)
+			errors.ReturnWithError(c, carrier.ErrInternalServerError)
 			return
 		}
 
@@ -37,7 +41,8 @@ func getAllCarriers(c *gin.Context) {
 		if token != nil {
 			addtionalCarriers := []entities.Carrier{}
 			if res := db.DB.Where("id IN (?)", token.HasReadAccessTo).Preload("Owner").Find(&addtionalCarriers); res.Error != nil {
-				c.JSON(500, gin.H{"error": "Internal Server Error"})
+				c.Error(res.Error)
+				errors.ReturnWithError(c, carrier.ErrInternalServerError)
 				return
 			}
 			carriers = append(carriers, addtionalCarriers...)
@@ -57,34 +62,34 @@ func getCarrier(c *gin.Context) {
 
 	carrierId := c.Param("id")
 	if carrierId == "" {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
-	carrier := entities.Carrier{}
-	if res := db.DB.Where("id = ?", carrierId).Preload("Owner").First(&carrier); res.Error != nil {
+	cr := entities.Carrier{}
+	if res := db.DB.Where("id = ?", carrierId).Preload("Owner").First(&cr); res.Error != nil {
 		if !user.IsAdmin {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
-		c.JSON(404, gin.H{"error": "Carrier not found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
 	if !user.IsAdmin && (token == nil || !token.HasFullReadAccess) {
-		if *carrier.OwnerID != user.ID && !token.HasReadAccessToCarrier(carrier.ID) {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+		if *cr.OwnerID != user.ID && !token.HasReadAccessToCarrier(cr.ID) {
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
 	}
 
-	serialize.JSON[entities.Carrier](c, (&serialize.CarrierSerializer{}).ParseFlags(c), carrier)
+	serialize.JSON[entities.Carrier](c, (&serialize.CarrierSerializer{}).ParseFlags(c), cr)
 }
 
 func getAllServices(c *gin.Context) {
 	_, exists := c.Get("user")
 	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, carrier.ErrUnauthorized)
 		return
 	}
 
@@ -95,20 +100,20 @@ func getAllServices(c *gin.Context) {
 func getCarrierService(c *gin.Context) {
 	_, exists := c.Get("user")
 	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, carrier.ErrUnauthorized)
 		return
 	}
 
 	serviceId := c.Param("name")
 	if serviceId == "" {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
 	// check if service exists in map
 	service, exists := entities.CarrierServices[serviceId]
 	if !exists {
-		c.JSON(404, gin.H{"error": "Carrier Service not found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierServiceNotFound)
 		return
 	}
 
@@ -122,7 +127,7 @@ func checkIfEditedSince(c *gin.Context) {
 	// get timestamp from query param
 	timestamp := c.Query("timestamp")
 	if timestamp == "" {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
@@ -132,7 +137,8 @@ func checkIfEditedSince(c *gin.Context) {
 		// check if parsing timestamp to int64 works
 		timestampInt, err := strconv.ParseInt(timestamp, 10, 64)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Bad Request"})
+			c.Error(err)
+			errors.ReturnWithError(c, carrier.ErrBadRequest)
 			return
 		}
 
@@ -142,30 +148,31 @@ func checkIfEditedSince(c *gin.Context) {
 	// check for :id in param
 	carrierIdStr := c.Param("id")
 	if carrierIdStr == "" {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
 	// parse carrier id
 	carrierId, err := uuid.Parse(carrierIdStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		c.Error(err)
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
 	// get carrier
-	carrier := entities.Carrier{}
-	if res := db.DB.Where("id = ?", carrierId).First(&carrier); res.Error != nil {
+	cr := entities.Carrier{}
+	if res := db.DB.Where("id = ?", carrierId).First(&cr); res.Error != nil {
 		if !current.IsAdmin {
-			c.JSON(403, gin.H{"error": "Forbidden"})
+			errors.ReturnWithError(c, carrier.ErrForbidden)
 			return
 		}
-		c.JSON(404, gin.H{"error": "Carrier not found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
 	// check if carrier was edited since timestamp
-	if carrier.UpdatedAt.After(timestampParsed) {
+	if cr.UpdatedAt.After(timestampParsed) {
 		c.JSON(200, gin.H{"edited": true})
 		return
 	}

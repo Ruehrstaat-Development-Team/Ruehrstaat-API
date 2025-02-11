@@ -3,7 +3,9 @@ package public
 import (
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/serialize"
+	"ruehrstaat-backend/services/carrier"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,17 +13,17 @@ import (
 func publicGetCarrier(c *gin.Context) {
 	carrierId := c.Param("id")
 	if carrierId == "" {
-		c.JSON(400, gin.H{"error": "Bad Request"})
+		errors.ReturnWithError(c, carrier.ErrBadRequest)
 		return
 	}
 
-	carrier := entities.Carrier{}
-	if res := db.DB.Where("id = ?", carrierId).Preload("Owner").First(&carrier); res.Error != nil {
-		c.JSON(404, gin.H{"error": "Carrier not found"})
+	cr := entities.Carrier{}
+	if res := db.DB.Where("id = ?", carrierId).Preload("Owner").First(&cr); res.Error != nil {
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
-	serialize.JSON[entities.Carrier](c, &serialize.CarrierSerializer{Limited: true, Full: false}, carrier)
+	serialize.JSON[entities.Carrier](c, &serialize.CarrierSerializer{Limited: true, Full: false}, cr)
 }
 
 func publicGetAllCarriers(c *gin.Context) {

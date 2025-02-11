@@ -1,31 +1,78 @@
 package auth
 
-import "errors"
+import "ruehrstaat-backend/errors"
 
 var (
-	ErrAbsoluteExpReached     = errors.New("absolute expiration reached")
-	ErrInvalidSigningMethod   = errors.New("invalid signing method")
-	ErrInvalidToken           = errors.New("invalid token")
-	ErrInvalidEmail           = errors.New("invalid email")
-	ErrEmailTaken             = errors.New("email taken")
-	ErrUserNotFound           = errors.New("user not found")
-	ErrUserNotActivated       = errors.New("user not activated")
-	ErrUserBanned             = errors.New("user banned")
-	ErrUserOtpMissing         = errors.New("user otp missing")
-	ErrUserOtpWrong           = errors.New("user otp wrong")
-	ErrInvalidCredentials     = errors.New("invalid credentials")
-	ErrUsedRefreshToken       = errors.New("used refresh token")
-	ErrInvalidActivationToken = errors.New("invalid activation token")
-	ErrUserAlreadyActivated   = errors.New("user already activated")
-	ErrInvalidResetToken      = errors.New("invalid reset token")
-	ErrResetNotRequested      = errors.New("reset not requested")
-	ErrForbidden              = errors.New("forbidden")
-	ErrInvalidUUID            = errors.New("invalid uuid")
+	ErrPackageAuth = errors.NewPackage("Authentication", "A")
+)
 
-	ErrInvalidEmailChangeToken = errors.New("invalid email change token")
-	ErrEmailChangeNotRequested = errors.New("email change not requested")
+// codes
+// 1xxx - invalid something
+// 2xxx - not found
+// 3xxx - already done / exists
+// 4xxx - forbidden
+// 5xxx - server error
 
-	ErrUnauthorized = errors.New("unauthorized")
+// 8xxx - Admin errors
+// 9xxx - other
+// 9999 - unknown error
 
-	ErrServer = errors.New("server error")
+var (
+	ErrInvalidToken            = errors.New(1001, *ErrPackageAuth, 401, "", "Invalid token")
+	ErrInvalidEmail            = errors.New(1002, *ErrPackageAuth, 400, "", "Invalid email")
+	ErrInvalidActivationToken  = errors.New(1003, *ErrPackageAuth, 400, "", "Invalid activation token")
+	ErrInvalidResetToken       = errors.New(1004, *ErrPackageAuth, 400, "", "Invalid reset token")
+	ErrInvalidUUID             = errors.New(1005, *ErrPackageAuth, 400, "", "Invalid uuid")
+	ErrInvalidEmailChangeToken = errors.New(1006, *ErrPackageAuth, 400, "", "Invalid email change token")
+	ErrInvalidState            = errors.New(1007, *ErrPackageAuth, 400, "", "Invalid state")
+	ErrInvalidSession          = errors.New(1008, *ErrPackageAuth, 400, "", "Invalid session")
+	ErrInvalidUserHandle       = errors.New(1009, *ErrPackageAuth, 400, "", "Invalid user handle")
+	ErrNoActivationToken       = errors.New(1010, *ErrPackageAuth, 400, "", "No activation token")
+	ErrNoActivationState       = errors.New(1011, *ErrPackageAuth, 400, "", "No activation state")
+	ErrInvalidActivationState  = errors.New(1012, *ErrPackageAuth, 400, "", "Invalid activation state")
+	ErrEmailDidNotChange       = errors.New(1013, *ErrPackageAuth, 400, "", "Email did not change")
+	ErrInvalidLocale           = errors.New(1014, *ErrPackageAuth, 400, "", "Invalid locale")
+	ErrInvalidOTPCode          = errors.New(1015, *ErrPackageAuth, 400, "", "Invalid OTP code")
+
+	ErrInvalidSigningMethod = errors.New(1901, *ErrPackageAuth, 500, "", "Invalid signing method")
+
+	ErrUserNotFound            = errors.New(2001, *ErrPackageAuth, 404, "", "User not found")
+	ErrUserNotActivated        = errors.New(2002, *ErrPackageAuth, 428, "", "User not activated")
+	ErrUserOtpMissing          = errors.New(2003, *ErrPackageAuth, 428, "", "User otp missing")
+	ErrResetNotRequested       = errors.New(2004, *ErrPackageAuth, 400, "", "Reset not requested")
+	ErrEmailChangeNotRequested = errors.New(2005, *ErrPackageAuth, 400, "", "Email change not requested")
+	ErrRedirectUrlMissing      = errors.New(2006, *ErrPackageAuth, 400, "", "Redirect url missing")
+	ErrStateIsMissing          = errors.New(2007, *ErrPackageAuth, 400, "", "State is missing")
+	ErrCodeIsMissing           = errors.New(2008, *ErrPackageAuth, 400, "", "Code is missing")
+	ErrDiscordNotLinked        = errors.New(2009, *ErrPackageAuth, 400, "", "Discord not linked")
+	ErrFidoNameIsMissing       = errors.New(2010, *ErrPackageAuth, 400, "", "Fido name is missing")
+	ErrOTPIsNotSet             = errors.New(2011, *ErrPackageAuth, 400, "", "OTP is not set")
+	ErrOTPIsNotVerified        = errors.New(2012, *ErrPackageAuth, 400, "", "OTP is not verified")
+
+	ErrEmailTaken           = errors.New(3001, *ErrPackageAuth, 400, "", "Email taken")
+	ErrUserAlreadyActivated = errors.New(3002, *ErrPackageAuth, 409, "", "User already activated")
+	ErrDiscordAlreadyLinked = errors.New(3003, *ErrPackageAuth, 409, "", "Discord already linked")
+	ErrOTPAlreadySet        = errors.New(3004, *ErrPackageAuth, 409, "", "OTP already set")
+	ErrOTPAlreadyVerified   = errors.New(3005, *ErrPackageAuth, 409, "", "OTP already verified")
+
+	ErrForbidden                        = errors.New(4000, *ErrPackageAuth, 403, "", "Forbidden")
+	ErrUnauthorized                     = errors.New(4001, *ErrPackageAuth, 401, "", "Unauthorized")
+	ErrUserBanned                       = errors.New(4002, *ErrPackageAuth, 403, "", "User banned")
+	ErrUserOtpWrong                     = errors.New(4003, *ErrPackageAuth, 403, "", "User otp wrong")
+	ErrInvalidCredentials               = errors.NewWithInternalMessage(4004, *ErrPackageAuth, 403, "", "Invalid credentials", "In sentry additional error above might be attached")
+	ErrUserNotFoundOrInvalidCredentials = errors.NewWithInternalMessage(4005, *ErrPackageAuth, 404, "", "User not found or invalid credentials", "In sentry see above error for more details.")
+
+	ErrServer                          = errors.New(5001, *ErrPackageAuth, 500, "", "Internal server error")
+	ErrQuickloginTokenRequestFailed    = errors.NewWithInternalMessage(5002, *ErrPackageAuth, 400, "", "Could not request quicklogin token", "In sentry see above error for more details.")
+	ErrQuickloginTokenValidationFailed = errors.NewWithInternalMessage(5003, *ErrPackageAuth, 400, "", "Could not validate quicklogin token", "In sentry see above error for more details.")
+	ErrQuickloginCompletionFailed      = errors.NewWithInternalMessage(5004, *ErrPackageAuth, 400, "", "Could not complete quicklogin", "In sentry see above error for more details.")
+
+	ErrAdminFailedToGetFromDB    = errors.NewWithInternalMessage(8001, *ErrPackageAuth, 500, "", "Failed to get user from db", "In sentry see above error for more details.")
+	ErrAdminFailedToRegisterUser = errors.NewWithInternalMessage(8002, *ErrPackageAuth, 500, "", "Failed to register user", "In sentry see above error for more details.")
+	ErrAdminFailedToSaveToDB     = errors.NewWithInternalMessage(8003, *ErrPackageAuth, 500, "", "Failed to save user to db", "In sentry see above error for more details.")
+	ErrAdminFailedToUpdateDB     = errors.NewWithInternalMessage(8004, *ErrPackageAuth, 500, "", "Failed to update user in db", "In sentry see above error for more details.")
+
+	ErrAbsoluteExpReached   = errors.New(9001, *ErrPackageAuth, 401, "", "Absolute expiration reached")
+	ErrUsedRefreshToken     = errors.New(9002, *ErrPackageAuth, 400, "", "Used refresh token")
+	ErrRegistrationDisabled = errors.New(9003, *ErrPackageAuth, 403, "", "Registration is disabled")
 )
