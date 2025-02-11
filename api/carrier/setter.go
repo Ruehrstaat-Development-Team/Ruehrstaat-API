@@ -309,7 +309,7 @@ func updateCarrier(c *gin.Context) {
 		cr.ReserveBalance = *carrierDto.ReserveBalance
 	}
 
-	if carrierDto.OwnerID != nil && (user.IsAdmin || (token != nil || token.HasFullWriteAccess)) {
+	if carrierDto.OwnerID != nil && (user.IsAdmin || (token != nil && token.HasFullWriteAccess)) {
 		// if exists set owner and owner id
 		user := entities.User{}
 		if res := db.DB.Where("id = ?", carrierDto.OwnerID).First(&user); res.Error != nil {
