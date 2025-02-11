@@ -122,7 +122,7 @@ func FinishFido2Login(state string, pcc *protocol.ParsedCredentialAssertionData)
 
 	session.UserID = login.WebAuthnID()
 
-	if _, err2 := authnClient.ValidateLogin(login, *session, pcc); err != nil {
+	if _, err2 := authnClient.ValidateLogin(login, *session, pcc); err2 != nil {
 		return nil, errors.NewAuthErrorFromError(err2)
 	}
 

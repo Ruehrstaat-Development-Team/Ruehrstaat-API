@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,14 @@ type RstError struct {
 	Stderr *error
 }
 
-func (e *RstError) Error() string {
+func (e *RstError) Error() error {
+	if e.Stderr != nil {
+		return *e.Stderr
+	}
+	return errors.New(e.String())
+}
+
+func (e *RstError) String() string {
 	return fmt.Sprintf("%s: %s : %s", e.Nickname(), e.message, e.InternalMessage)
 }
 
@@ -80,7 +88,7 @@ func NewAuthErrorFromError(err error) *RstError {
 // 9999 - unknown error
 
 func ReturnWithError(c *gin.Context, err *RstError) {
-	c.Error(err)
+	c.Error(err.Error())
 	c.JSON(err.HtmlCode(), gin.H{
 		"error": err.Message(),
 		"code":  err.Code(),
@@ -89,7 +97,7 @@ func ReturnWithError(c *gin.Context, err *RstError) {
 }
 
 func MiddlewareAbortWithError(c *gin.Context, err *RstError) {
-	c.Error(err)
+	c.Error(err.Error())
 	c.JSON(err.HtmlCode(), gin.H{
 		"error": err.Message(),
 		"code":  err.Code(),

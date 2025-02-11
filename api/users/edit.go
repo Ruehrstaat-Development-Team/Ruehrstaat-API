@@ -71,7 +71,7 @@ func editUser(c *gin.Context) {
 	})
 
 	if err2 != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrAdminFailedToSaveToDB)
 		return
 	}
@@ -116,7 +116,7 @@ func changeEmail(c *gin.Context) {
 			return
 		}
 
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrServer)
 		panic(err)
 	}

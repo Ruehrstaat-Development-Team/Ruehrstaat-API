@@ -54,7 +54,7 @@ func adminCreateUser(c *gin.Context) {
 		errors.ReturnWithError(c, err)
 		return
 	} else if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrAdminFailedToRegisterUser)
 		return
 	}

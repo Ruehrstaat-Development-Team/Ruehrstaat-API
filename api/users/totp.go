@@ -16,7 +16,7 @@ import (
 func beginTotp(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -50,7 +50,7 @@ func beginTotp(c *gin.Context) {
 func verifyTotp(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -111,7 +111,7 @@ func generateRecoveryCodes(count int) []string {
 func disableTotp(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -137,7 +137,7 @@ func disableTotp(c *gin.Context) {
 
 	if !totp.Validate(dto.Code, *user.OtpSecret) {
 		if err := auth.TryBackupCodes(user, &dto.Code); err != nil {
-			c.Error(err)
+			c.Error(err.Error())
 			errors.ReturnWithError(c, auth.ErrInvalidOTPCode)
 			return
 		}
@@ -159,7 +159,7 @@ func disableTotp(c *gin.Context) {
 func requestUrlForVerification(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -197,7 +197,7 @@ func requestUrlForVerification(c *gin.Context) {
 
 func removeTotp(c *gin.Context) {
 	if _, ok := auth.AutoAuthorizeAdmin(c); !ok {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}

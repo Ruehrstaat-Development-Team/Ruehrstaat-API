@@ -32,7 +32,7 @@ func activateUser(c *gin.Context) {
 
 	if err := auth.ActivateAccount(userId, activationToken); err != nil {
 		if err == auth.ErrUserNotFound {
-			c.Error(err)
+			c.Error(err.Error())
 			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
@@ -47,7 +47,7 @@ func activateUser(c *gin.Context) {
 			return
 		}
 
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -80,7 +80,7 @@ func resendUserActivation(c *gin.Context) {
 	}
 
 	if err := auth.GenerateActivationToken(user); err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -98,7 +98,7 @@ func requestPasswordReset(c *gin.Context) {
 	if res := db.DB.Where("email = ?", email).First(user); res.Error != nil {
 		if res.Error == gorm.ErrRecordNotFound {
 			c.Error(res.Error)
-			c.Error(auth.ErrUserNotFound)
+			c.Error(auth.ErrUserNotFound.Error())
 			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
@@ -108,7 +108,7 @@ func requestPasswordReset(c *gin.Context) {
 	}
 
 	if err := auth.GenerateResetPasswordToken(user); err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -151,18 +151,18 @@ func resetPassword(c *gin.Context) {
 		}
 
 		if err == auth.ErrUserNotFound {
-			c.Error(err)
+			c.Error(err.Error())
 			errors.ReturnWithError(c, auth.ErrForbidden)
 			return
 		}
 
 		if err == auth.ErrUserOtpWrong {
-			c.Error(err)
+			c.Error(err.Error())
 			errors.ReturnWithError(c, auth.ErrUserOtpWrong)
 			return
 		}
 
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 }
@@ -170,7 +170,7 @@ func resetPassword(c *gin.Context) {
 func changePassword(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -197,7 +197,7 @@ func changePassword(c *gin.Context) {
 			return
 		}
 
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -245,7 +245,7 @@ func requestEmailChange(c *gin.Context) {
 			errors.ReturnWithError(c, err)
 			return
 		}
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 

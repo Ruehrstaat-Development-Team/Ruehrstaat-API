@@ -2,6 +2,7 @@ package auth
 
 import (
 	"ruehrstaat-backend/db/entities"
+	"ruehrstaat-backend/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,14 +19,12 @@ func Authorize(c *gin.Context) (*entities.User, bool) {
 func AutoAuthorize(c *gin.Context) (*entities.User, bool) {
 	user := Extract(c)
 	if user == nil {
-		c.Error(ErrUnauthorized)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, ErrUnauthorized)
 		return nil, false
 	}
 
 	if user.IsBanned {
-		c.Error(ErrForbidden)
-		c.JSON(403, gin.H{"error": "Forbidden"})
+		errors.ReturnWithError(c, ErrForbidden)
 		return nil, false
 	}
 
@@ -35,20 +34,17 @@ func AutoAuthorize(c *gin.Context) (*entities.User, bool) {
 func AutoAuthorizeAdmin(c *gin.Context) (*entities.User, bool) {
 	user := Extract(c)
 	if user == nil {
-		c.Error(ErrUnauthorized)
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		errors.ReturnWithError(c, ErrUnauthorized)
 		return nil, false
 	}
 
 	if user.IsBanned {
-		c.Error(ErrForbidden)
-		c.JSON(403, gin.H{"error": "Forbidden"})
+		errors.ReturnWithError(c, ErrForbidden)
 		return nil, false
 	}
 
 	if !user.IsAdmin {
-		c.Error(ErrForbidden)
-		c.JSON(403, gin.H{"error": "Forbidden"})
+		errors.ReturnWithError(c, ErrForbidden)
 		return nil, false
 	}
 

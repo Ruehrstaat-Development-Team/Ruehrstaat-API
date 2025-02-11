@@ -33,13 +33,13 @@ func SendMailGraceful(receiver string, mail mails.Mail, locale string) *errors.R
 }
 
 func SendBulkMail(receivers []string, mail mails.Mail, locale string) {
-	errors := make([]error, 0)
+	errors := make([]errors.RstError, 0)
 
 	for _, receiver := range receivers {
 		err := sendMail(receiver, mail, locale)
 
 		if err != nil {
-			errors = append(errors, err)
+			errors = append(errors, *err)
 		}
 	}
 

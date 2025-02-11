@@ -85,7 +85,7 @@ func CreateTokenPairForUser(user *entities.User) (*TokenPair, *errors.RstError) 
 
 // Tries to use a backup code to do a two factor authentication.
 func TryBackupCodes(user *entities.User, otp *string) *errors.RstError {
-	if user.OtpBackupCodes == nil || len(user.OtpBackupCodes) == 0 {
+	if len(user.OtpBackupCodes) == 0 {
 		return ErrUserOtpWrong
 	}
 

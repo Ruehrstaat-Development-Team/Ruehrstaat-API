@@ -15,7 +15,7 @@ type decodedToken struct {
 func decodeToken(secret string, tokenString string) (*decodedToken, *errors.RstError) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, ErrInvalidSigningMethod
+			return nil, ErrInvalidSigningMethod.Error()
 		}
 
 		return []byte(secret), nil

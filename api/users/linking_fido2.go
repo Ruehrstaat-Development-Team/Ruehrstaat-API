@@ -13,7 +13,7 @@ import (
 func beginFido2Link(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -25,7 +25,7 @@ func beginFido2Link(c *gin.Context) {
 
 	state, options, err := auth.BeginFido2Register(user, displayName)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -35,7 +35,7 @@ func beginFido2Link(c *gin.Context) {
 func endFido2Link(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -46,15 +46,15 @@ func endFido2Link(c *gin.Context) {
 		return
 	}
 
-	pcc, err := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
-	if err != nil {
-		c.Error(err)
-		panic(err)
+	pcc, perr := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
+	if perr != nil {
+		c.Error(perr)
+		panic(perr)
 	}
 
-	err = auth.FinishFido2Register(state, user, pcc)
+	err := auth.FinishFido2Register(state, user, pcc)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -64,7 +64,7 @@ func endFido2Link(c *gin.Context) {
 func unlinkFido2(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -77,7 +77,7 @@ func unlinkFido2(c *gin.Context) {
 
 	err := auth.DeleteFido2Login(user, user.ID, name)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -87,7 +87,7 @@ func unlinkFido2(c *gin.Context) {
 func getFido2Links(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}

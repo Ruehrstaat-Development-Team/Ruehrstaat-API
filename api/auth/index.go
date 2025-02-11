@@ -63,7 +63,7 @@ func register(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -80,7 +80,7 @@ func login(c *gin.Context) {
 
 	token, user, err := auth.Login(dto.Email, dto.Password, dto.Otp)
 	if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrUserNotFoundOrInvalidCredentials)
 		return
 	}
@@ -91,7 +91,7 @@ func login(c *gin.Context) {
 	}
 
 	if err == auth.ErrUserNotActivated {
-		c.Error(err)
+		c.Error(err.Error())
 		activateState := cache.BeginState("resend_activate", user.ID, time.Minute*5)
 
 		c.JSON(err.HtmlCode(), gin.H{
@@ -104,7 +104,7 @@ func login(c *gin.Context) {
 	}
 
 	if err == auth.ErrUserOtpMissing {
-		c.Error(err)
+		c.Error(err.Error())
 		otpState := cache.BeginState("login_otp", map[string]string{
 			"email":    dto.Email,
 			"password": dto.Password,
@@ -120,14 +120,14 @@ func login(c *gin.Context) {
 	}
 
 	if err == auth.ErrUserOtpWrong {
-		c.Error(err)
+		c.Error(err.Error())
 
 		errors.ReturnWithError(c, auth.ErrInvalidCredentials)
 		return
 	}
 
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -151,7 +151,7 @@ func loginTotp(c *gin.Context) {
 
 	token, user, err := auth.Login(payload["email"], payload["password"], &dto.Code)
 	if err == auth.ErrUserNotFound || err == auth.ErrInvalidCredentials {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrUserNotFoundOrInvalidCredentials)
 		return
 	}
@@ -162,7 +162,7 @@ func loginTotp(c *gin.Context) {
 	}
 
 	if err == auth.ErrUserNotActivated {
-		c.Error(err)
+		c.Error(err.Error())
 		activateState := cache.BeginState("resend_activate", user.ID, time.Minute*5)
 
 		c.JSON(err.HtmlCode(), gin.H{
@@ -175,7 +175,7 @@ func loginTotp(c *gin.Context) {
 	}
 
 	if err == auth.ErrUserOtpWrong {
-		c.Error(err)
+		c.Error(err.Error())
 		otpState := cache.BeginState("login_otp", map[string]string{
 			"email":    payload["email"],
 			"password": payload["password"],
@@ -191,7 +191,7 @@ func loginTotp(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -200,22 +200,22 @@ func loginTotp(c *gin.Context) {
 }
 
 func refreshToken(c *gin.Context) {
-	refreshToken, err := c.Cookie("refresh_token")
-	if err != nil {
-		c.Error(err)
-		c.Error(dtoerr.InvalidDTO)
+	refreshToken, cerr := c.Cookie("refresh_token")
+	if cerr != nil {
+		c.Error(cerr)
+		c.Error(dtoerr.InvalidDTO.Error())
 		return
 	}
 
 	token, err := auth.Refresh(refreshToken)
 	if err == auth.ErrUsedRefreshToken {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrInvalidToken)
 		return
 	}
 
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -224,16 +224,16 @@ func refreshToken(c *gin.Context) {
 }
 
 func logout(c *gin.Context) {
-	refreshToken, err := c.Cookie("refresh_token")
-	if err != nil {
-		c.Error(err)
+	refreshToken, cerr := c.Cookie("refresh_token")
+	if cerr != nil {
+		c.Error(cerr)
 		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
-	err = auth.Logout(refreshToken, false)
+	err := auth.Logout(refreshToken, false)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -242,16 +242,16 @@ func logout(c *gin.Context) {
 }
 
 func logoutAll(c *gin.Context) {
-	refreshToken, err := c.Cookie("refresh_token")
-	if err != nil {
-		c.Error(err)
+	refreshToken, cerr := c.Cookie("refresh_token")
+	if cerr != nil {
+		c.Error(cerr)
 		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
 
-	err = auth.Logout(refreshToken, true)
+	err := auth.Logout(refreshToken, true)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -352,7 +352,7 @@ func discordLoginCallback(c *gin.Context) {
 func beginLoginFido2(c *gin.Context) {
 	state, options, err := auth.BeginFido2Login()
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
@@ -366,21 +366,21 @@ func endLoginFido2(c *gin.Context) {
 		return
 	}
 
-	pcc, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
-	if err != nil {
-		c.Error(err)
-		panic(err)
+	pcc, perr := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+	if perr != nil {
+		c.Error(perr)
+		panic(perr)
 	}
 
 	user, err := auth.FinishFido2Login(state, pcc)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 
 	token, err := auth.CreateTokenPairForUser(user)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		panic(err)
 	}
 

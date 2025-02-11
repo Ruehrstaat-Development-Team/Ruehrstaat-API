@@ -32,7 +32,7 @@ func findUser(current *entities.User, userIdStr string) (*entities.User, *errors
 func getUser(c *gin.Context) {
 	current := auth.Extract(c)
 	if current == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}

@@ -56,7 +56,7 @@ func Register(email string, password string, nickname string, cmdrName string, a
 
 	if !asAdmin {
 		if err := GenerateActivationToken(user); err != nil {
-			return errors.NewFromError(err)
+			return err
 		}
 	}
 
@@ -69,7 +69,7 @@ func Register(email string, password string, nickname string, cmdrName string, a
 func GenerateActivationToken(user *entities.User) *errors.RstError {
 	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron Account Activation", 72)
 	if err != nil {
-		return errors.NewFromError(err)
+		return err
 	}
 
 	user.ActivationToken = &token
@@ -90,9 +90,9 @@ func GenerateActivationToken(user *entities.User) *errors.RstError {
 // Activates the account with the given user ID and token.
 // If the token is invalid, an error is returned.
 func ActivateAccount(userID uuid.UUID, token string) *errors.RstError {
-	unescaped, err := url.QueryUnescape(token)
-	if err != nil {
-		return errors.NewFromError(err)
+	unescaped, qerr := url.QueryUnescape(token)
+	if qerr != nil {
+		return errors.NewFromError(qerr)
 	}
 
 	decoded, err := decodeToken(getIdentityTokenSecret(), unescaped)
@@ -131,7 +131,7 @@ func ActivateAccount(userID uuid.UUID, token string) *errors.RstError {
 func GenerateResetPasswordToken(user *entities.User) *errors.RstError {
 	token, err := generateCustomToken(user.ID.String(), "Ruehrstaat-Squadron Account Passwort Reset", 1)
 	if err != nil {
-		return errors.NewFromError(err)
+		return err
 	}
 
 	user.PasswordResetToken = &token
@@ -150,9 +150,9 @@ func GenerateResetPasswordToken(user *entities.User) *errors.RstError {
 }
 
 func ResetPassword(userID uuid.UUID, token string, password string, otp *string) *errors.RstError {
-	unescaped, err := url.QueryUnescape(token)
-	if err != nil {
-		return errors.NewFromError(err)
+	unescaped, qerr := url.QueryUnescape(token)
+	if qerr != nil {
+		return errors.NewFromError(qerr)
 	}
 
 	decoded, err := decodeToken(getIdentityTokenSecret(), unescaped)
@@ -194,9 +194,9 @@ func ResetPassword(userID uuid.UUID, token string, password string, otp *string)
 		}
 	}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return errors.NewFromError(err)
+	hashed, berr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if berr != nil {
+		return errors.NewFromError(berr)
 	}
 
 	user.Password = string(hashed)
@@ -300,9 +300,9 @@ func InitiateEmailChange(user *entities.User, newEmail string, password string, 
 }
 
 func ChangeEmail(user *entities.User, token string) *errors.RstError {
-	unescaped, err := url.QueryUnescape(token)
-	if err != nil {
-		return errors.NewFromError(err)
+	unescaped, qerr := url.QueryUnescape(token)
+	if qerr != nil {
+		return errors.NewFromError(qerr)
 	}
 
 	decoded, err := decodeToken(getIdentityTokenSecret(), unescaped)

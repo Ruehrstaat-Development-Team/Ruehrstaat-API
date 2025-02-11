@@ -13,7 +13,7 @@ import (
 func requestQuickLoginToken(c *gin.Context) {
 	token, sessionId, err := auth.RequestQuickLoginToken()
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrQuickloginTokenRequestFailed)
 	}
 
@@ -41,7 +41,7 @@ func verifyQuickLoginToken(c *gin.Context) {
 
 	err := auth.VerifyQuickLoginToken(token, user)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrQuickloginTokenValidationFailed)
 		return
 	}
@@ -66,7 +66,7 @@ func completeQuickLogin(c *gin.Context) {
 
 	userId, err := auth.CompleteQuickLogin(token, sessionID)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
 		return
 	}
@@ -79,7 +79,7 @@ func completeQuickLogin(c *gin.Context) {
 	}
 
 	if err := auth.CheckUserLoginAllowance(&user); err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		if err == auth.ErrUserBanned {
 			errors.ReturnWithError(c, auth.ErrUserBanned)
 		} else if err == auth.ErrUserNotActivated {
@@ -92,7 +92,7 @@ func completeQuickLogin(c *gin.Context) {
 
 	jwttoken, err := auth.CreateTokenPairForUser(&user)
 	if err != nil {
-		c.Error(err)
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
 		return
 	}

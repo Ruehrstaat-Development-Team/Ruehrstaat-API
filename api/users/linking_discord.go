@@ -17,7 +17,7 @@ import (
 func beginDiscordLink(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
@@ -101,7 +101,7 @@ func discordLinkCallback(c *gin.Context) {
 func unlinkDiscord(c *gin.Context) {
 	user := auth.Extract(c)
 	if user == nil {
-		c.Error(auth.ErrInvalidToken)
+		c.Error(auth.ErrInvalidToken.Error())
 		errors.ReturnWithError(c, auth.ErrUnauthorized)
 		return
 	}
