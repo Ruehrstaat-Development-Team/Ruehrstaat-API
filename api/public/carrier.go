@@ -9,7 +9,6 @@ import (
 )
 
 func publicGetCarrier(c *gin.Context) {
-
 	carrierId := c.Param("id")
 	if carrierId == "" {
 		c.JSON(400, gin.H{"error": "Bad Request"})
@@ -23,4 +22,14 @@ func publicGetCarrier(c *gin.Context) {
 	}
 
 	serialize.JSON[entities.Carrier](c, &serialize.CarrierSerializer{Limited: true, Full: false}, carrier)
+}
+
+func publicGetAllCarriers(c *gin.Context) {
+	carriers := []entities.Carrier{}
+	if res := db.DB.Preload("Owner").Find(&carriers); res.Error != nil {
+		c.JSON(404, gin.H{"error": "Carriers not found"})
+		return
+	}
+
+	serialize.JSONArray(c, &serialize.CarrierSerializer{Limited: true, Full: false}, carriers)
 }
