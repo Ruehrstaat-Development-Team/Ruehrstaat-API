@@ -12,8 +12,14 @@ import (
 func RegisterRoutes(router *gin.RouterGroup) {
 	api := router.Group("/v1")
 
+	api.GET("/health", healthCheck)
+
 	auth.RegisterRoutes(api)
 	users.RegisterRoutes(api)
 	public.RegisterRoutes(api)
 	carrier.RegisterRoutes(api)
+}
+
+func healthCheck(c *gin.Context) {
+	c.JSON(200, gin.H{"message": "OK"})
 }
