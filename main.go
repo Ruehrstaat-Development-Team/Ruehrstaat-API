@@ -84,7 +84,7 @@ func setup() {
 			log.Println("Cron system disabled")
 		}*/
 
-	err := r.Run(":8000")
+	err := r.Run(":8080")
 	if err != nil {
 		log.Println("Error: ", err)
 	}

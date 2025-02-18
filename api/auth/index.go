@@ -36,6 +36,10 @@ func RegisterRoutes(api *gin.RouterGroup) {
 	authApi.GET("/quicklogin", requestQuickLoginToken)
 	authApi.PUT("/quicklogin", verifyQuickLoginToken)
 	authApi.POST("/quicklogin", completeQuickLogin)
+
+	authApi.GET("/passivelogin", requestPassiveLoginToken)
+	authApi.PUT("/passivelogin", verifyPassiveLoginToken)
+	authApi.POST("/passivelogin", completePassiveLogin)
 }
 
 func register(c *gin.Context) {

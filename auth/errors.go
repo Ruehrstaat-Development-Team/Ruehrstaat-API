@@ -67,6 +67,11 @@ var (
 	ErrQuickloginTokenValidationFailed = errors.NewWithInternalMessage(5003, *ErrPackageAuth, 400, "", "Could not validate quicklogin token", "In sentry see above error for more details.")
 	ErrQuickloginCompletionFailed      = errors.NewWithInternalMessage(5004, *ErrPackageAuth, 400, "", "Could not complete quicklogin", "In sentry see above error for more details.")
 
+	ErrPassiveLoginTokenRequestFailed    = errors.NewWithInternalMessage(5012, *ErrPackageAuth, 400, "", "Could not request passive login token", "In sentry see above error for more details.")
+	ErrPassiveLoginTokenValidationFailed = errors.NewWithInternalMessage(5013, *ErrPackageAuth, 400, "", "Could not validate passive login token", "In sentry see above error for more details.")
+	ErrPassiveLoginCompletionFailed      = errors.NewWithInternalMessage(5014, *ErrPackageAuth, 400, "", "Could not complete passive login", "In sentry see above error for more details.")
+	ErrPassiveLoginTokenNotYetVerified   = errors.NewWithInternalMessage(5015, *ErrPackageAuth, 400, "", "Passive login token not yet verified", "In sentry see above error for more details.")
+
 	ErrAdminFailedToGetFromDB    = errors.NewWithInternalMessage(8001, *ErrPackageAuth, 500, "", "Failed to get user from db", "In sentry see above error for more details.")
 	ErrAdminFailedToRegisterUser = errors.NewWithInternalMessage(8002, *ErrPackageAuth, 500, "", "Failed to register user", "In sentry see above error for more details.")
 	ErrAdminFailedToSaveToDB     = errors.NewWithInternalMessage(8003, *ErrPackageAuth, 500, "", "Failed to save user to db", "In sentry see above error for more details.")
