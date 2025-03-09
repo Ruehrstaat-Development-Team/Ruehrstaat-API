@@ -3,6 +3,7 @@ package api
 import (
 	"ruehrstaat-backend/api/auth"
 	"ruehrstaat-backend/api/carrier"
+	"ruehrstaat-backend/api/moria"
 	"ruehrstaat-backend/api/public"
 	"ruehrstaat-backend/api/users"
 
@@ -18,6 +19,7 @@ func RegisterRoutes(router *gin.RouterGroup) {
 	users.RegisterRoutes(api)
 	public.RegisterRoutes(api)
 	carrier.RegisterRoutes(api)
+	moria.RegisterRoutes(api)
 }
 
 func healthCheck(c *gin.Context) {
