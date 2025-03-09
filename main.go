@@ -13,6 +13,7 @@ import (
 	"ruehrstaat-backend/constants"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/logging"
+	"ruehrstaat-backend/services/moria"
 	"runtime"
 
 	"github.com/getsentry/sentry-go"
@@ -66,6 +67,10 @@ func setup() {
 
 	db.Initialize()
 	cache.Initialize()
+
+	if os.Getenv("MORIA_ENABLED") == "true" {
+		moria.InitMoria(os.Getenv("MORIA_URL"), os.Getenv("MORIA_TOKEN"))
+	}
 
 	r := gin.New()
 	r.Use(sentrygin.New(sentrygin.Options{
