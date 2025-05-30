@@ -24,11 +24,26 @@ func getAllCarriers(c *gin.Context) {
 	carriers := []entities.Carrier{}
 
 	if user.IsAdmin || (token != nil && token.HasFullReadAccess) {
-		if res := db.DB.Find(&carriers).Preload("Owner"); res.Error != nil {
+		allCarriers := []entities.Carrier{}
+		if res := db.DB.Find(&allCarriers).Preload("Owner"); res.Error != nil {
 			c.Error(res.Error)
 			errors.ReturnWithError(c, carrier.ErrInternalServerError)
 			return
 		}
+
+		ownedCarriers := []entities.Carrier{}
+		notOwnedCarriers := []entities.Carrier{}
+		for _, cr := range allCarriers {
+			if cr.OwnerID != nil && *cr.OwnerID == user.ID {
+				ownedCarriers = append(ownedCarriers, cr)
+			} else {
+				notOwnedCarriers = append(notOwnedCarriers, cr)
+			}
+		}
+
+		carriers = ownedCarriers
+		carriers = append(carriers, notOwnedCarriers...)
+
 	} else {
 		// get carrier where owner id is user id
 		if res := db.DB.Where("owner_id = ?", user.ID).Preload("Owner").Find(&carriers); res.Error != nil {
