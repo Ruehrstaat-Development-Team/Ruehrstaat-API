@@ -25,8 +25,9 @@ func (s *CarrierSerializer) Serialize(carrier entities.Carrier) interface{} {
 	}
 
 	if carrier.Owner != nil {
+		obj.Add("ownerId", carrier.Owner.ID)
 		obj.Add("owner", carrier.Owner.CmdrName)
-		if !s.Limited {
+		if !s.Limited && carrier.Owner.DiscordId != nil {
 			obj.Add("ownerDiscordId", carrier.Owner.DiscordId)
 		}
 	}
