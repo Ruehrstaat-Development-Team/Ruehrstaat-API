@@ -66,3 +66,21 @@ func (s *CarrierServiceSerializer) Serialize(service entities.CarrierService) in
 func (s *CarrierServiceSerializer) ParseFlags(c *gin.Context) *CarrierServiceSerializer {
 	return s
 }
+
+type CarriersByCategorySerializer struct {
+	Full    bool `json:"full"`
+	Limited bool `json:"limited"`
+}
+
+func (s *CarriersByCategorySerializer) Serialize(category entities.CarriersByCategory) interface{} {
+	obj := &JsonObj{
+		"category": category.Category,
+		"carriers": DoArray[entities.Carrier](&CarrierSerializer{Limited: s.Limited, Full: s.Full}, category.Carriers.([]entities.Carrier)),
+	}
+	return obj
+}
+func (s *CarriersByCategorySerializer) ParseFlags(c *gin.Context) *CarriersByCategorySerializer {
+	s.Full = c.Query("full") == "true"
+	s.Limited = c.Query("limited") == "true"
+	return s
+}

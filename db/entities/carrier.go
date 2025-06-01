@@ -233,3 +233,8 @@ var (
 	InvalidCategoryError      = errors.New(1002, *ErrPackageCarrierEntity, 400, "", "Invalid Category provided")
 	InvalidServiceError       = errors.New(1003, *ErrPackageCarrierEntity, 400, "", "Invalid Service provided")
 )
+
+type CarriersByCategory struct {
+	Category string
+	Carriers interface{}
+}

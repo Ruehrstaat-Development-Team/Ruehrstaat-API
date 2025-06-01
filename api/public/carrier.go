@@ -43,39 +43,24 @@ func publicGetAllCarriers(c *gin.Context) {
 }
 
 func publicGetAllCarriersSortedByCategory(c *gin.Context) {
-	carriers := map[string][]interface{}{
-		"flagship":      {},
-		"freighter":     {},
-		"supportvessel": {},
-		"other":         {},
-	}
-
 	tmpCarriers := []entities.Carrier{}
 	if res := db.DB.Preload("Owner").Order("name ASC").Find(&tmpCarriers); res.Error != nil {
 		c.JSON(404, gin.H{"error": "Carriers not found"})
 		return
 	}
 
-	flagships := []entities.Carrier{}
-	freighters := []entities.Carrier{}
-	supportVessels := []entities.Carrier{}
-	other := []entities.Carrier{}
+	carriersByCategory := map[entities.CarrierCategory][]entities.Carrier{}
 	for _, carrier := range tmpCarriers {
-		switch carrier.Category {
-		case entities.CarrierCategoryFlagship:
-			flagships = append(flagships, carrier)
-		case entities.CarrierCategoryFreighter:
-			freighters = append(freighters, carrier)
-		case entities.CarrierCategorySupportVessel:
-			supportVessels = append(supportVessels, carrier)
-		default:
-			other = append(other, carrier)
-		}
+		carriersByCategory[carrier.Category] = append(carriersByCategory[carrier.Category], carrier)
 	}
-	carriers["flagship"] = serialize.DoArray(&serialize.CarrierSerializer{Limited: true, Full: false}, flagships)
-	carriers["freighter"] = serialize.DoArray(&serialize.CarrierSerializer{Limited: true, Full: false}, freighters)
-	carriers["supportvessel"] = serialize.DoArray(&serialize.CarrierSerializer{Limited: true, Full: false}, supportVessels)
-	carriers["other"] = serialize.DoArray(&serialize.CarrierSerializer{Limited: true, Full: false}, other)
 
-	c.JSON(200, carriers)
+	carriersSlice := make([]entities.CarriersByCategory, 0, len(carriersByCategory))
+	for category, carriers := range carriersByCategory {
+		carriersSlice = append(carriersSlice, entities.CarriersByCategory{
+			Category: string(category),
+			Carriers: carriers,
+		})
+	}
+
+	serialize.JSONArray(c, &serialize.CarriersByCategorySerializer{}, carriersSlice)
 }
