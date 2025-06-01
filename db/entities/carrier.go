@@ -214,6 +214,14 @@ const (
 	CarrierCategorySupportVessel CarrierCategory = "supportvessel"
 )
 
+func GetCarrierCategorySortingOrder() string {
+	return "CASE category " +
+		"WHEN 'flagship' THEN 1 " +
+		"WHEN 'freighter' THEN 2 " +
+		"WHEN 'supportvessel' THEN 3 " +
+		"ELSE 4 END, name ASC"
+}
+
 // errors
 
 var ErrPackageCarrierEntity = errors.NewPackage("CarrierEntity", "CE")
