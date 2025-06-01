@@ -25,7 +25,7 @@ func getAllCarriers(c *gin.Context) {
 
 	if user.IsAdmin || (token != nil && token.HasFullReadAccess) {
 		allCarriers := []entities.Carrier{}
-		if res := db.DB.Find(&allCarriers).Preload("Owner"); res.Error != nil {
+		if res := db.DB.Find(&allCarriers).Preload("Owner").Order("name ASC"); res.Error != nil {
 			c.Error(res.Error)
 			errors.ReturnWithError(c, carrier.ErrInternalServerError)
 			return
@@ -46,7 +46,7 @@ func getAllCarriers(c *gin.Context) {
 
 	} else {
 		// get carrier where owner id is user id
-		if res := db.DB.Where("owner_id = ?", user.ID).Preload("Owner").Find(&carriers); res.Error != nil {
+		if res := db.DB.Where("owner_id = ?", user.ID).Preload("Owner").Order("name ASC").Find(&carriers); res.Error != nil {
 			c.Error(res.Error)
 			errors.ReturnWithError(c, carrier.ErrInternalServerError)
 			return
@@ -55,7 +55,7 @@ func getAllCarriers(c *gin.Context) {
 		// if token is not nil, get append carriers where id is in token.HadReadAccessTo
 		if token != nil {
 			addtionalCarriers := []entities.Carrier{}
-			if res := db.DB.Where("id IN (?)", token.HasReadAccessTo).Preload("Owner").Find(&addtionalCarriers); res.Error != nil {
+			if res := db.DB.Where("id IN (?)", token.HasReadAccessTo).Preload("Owner").Order("name ASC").Find(&addtionalCarriers); res.Error != nil {
 				c.Error(res.Error)
 				errors.ReturnWithError(c, carrier.ErrInternalServerError)
 				return
