@@ -28,13 +28,6 @@ func publicGetCarrier(c *gin.Context) {
 
 func publicGetAllCarriers(c *gin.Context) {
 	carriers := []entities.Carrier{}
-	// order by category first all flagships, then freighters, then support vessels, then others
-	// 	CarrierCategoryFlagship      CarrierCategory = "flagship"
-	// 	CarrierCategoryFreighter     CarrierCategory = "freighter"
-	// 	CarrierCategorySupportVessel CarrierCategory = "supportvessel"
-	// CarrierCategoryOther         CarrierCategory = "other"
-	// and within category by name ascending
-	// Order by category (flagship -> freighter -> supportvessel -> other) and then by name ascending
 	categoryOrder := "CASE category " +
 		"WHEN 'flagship' THEN 1 " +
 		"WHEN 'freighter' THEN 2 " +
