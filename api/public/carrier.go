@@ -44,7 +44,13 @@ func publicGetAllCarriers(c *gin.Context) {
 
 func publicGetAllCarriersSortedByCategory(c *gin.Context) {
 	tmpCarriers := []entities.Carrier{}
-	if res := db.DB.Preload("Owner").Order("name ASC").Find(&tmpCarriers); res.Error != nil {
+	categoryOrder := "CASE category " +
+		"WHEN 'flagship' THEN 1 " +
+		"WHEN 'freighter' THEN 2 " +
+		"WHEN 'supportvessel' THEN 3 " +
+		"ELSE 4 END, name ASC"
+
+	if res := db.DB.Preload("Owner").Order(categoryOrder).Find(&tmpCarriers); res.Error != nil {
 		c.JSON(404, gin.H{"error": "Carriers not found"})
 		return
 	}
