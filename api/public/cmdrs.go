@@ -12,7 +12,7 @@ import (
 
 func publicGetCmdrs(c *gin.Context) {
 	tmpCmdrs := []entities.User{}
-	if res := db.DB.Order(entities.GetCommanderSquadronRankSortingOrder()).Find(&tmpCmdrs); res.Error != nil {
+	if res := db.DB.Where("is_squadron_member = ?", true).Order(entities.GetCommanderSquadronRankSortingOrder()).Find(&tmpCmdrs); res.Error != nil {
 		errors.ReturnWithError(c, cmdrs.ErrInternalServerError)
 		return
 	}
