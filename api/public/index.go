@@ -15,4 +15,7 @@ func RegisterRoutes(api *gin.RouterGroup) {
 	publicCarrierApi.GET("/:id", publicGetCarrier)
 	publicCarrierApi.GET("/", publicGetAllCarriers)
 	publicCarrierApi.GET("/bycategory", publicGetAllCarriersSortedByCategory)
+
+	publicCmdrsApi := publicApi.Group("/cmdrs")
+	publicCmdrsApi.GET("/", publicGetCmdrs)
 }

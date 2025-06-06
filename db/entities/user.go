@@ -8,6 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type SquadronRank string
+
+const (
+	SquadronRankRuehrer      SquadronRank = "ruehrer"
+	SquadronRankVizeRuehrer  SquadronRank = "vize-ruehrer"
+	SquadronRankLoeffler     SquadronRank = "loeffler"
+	SquadronRankBruehwuerfel SquadronRank = "bruehwuerfel"
+	SquadronRankBrei         SquadronRank = "brei"
+	SquadronRankNone         SquadronRank = "none"
+)
+
 type User struct {
 	gorm.Model
 	// Basic user information
@@ -41,6 +52,34 @@ type User struct {
 	DiscordName    *string        `gorm:"type:text"`
 	RefreshTokens  []RefreshToken
 	Fido2Login     []Fido2Login
+
+	// Squadron Membership
+	IsSquadronMember bool         `gorm:"type:boolean;default:false;index"`
+	SquadronRank     SquadronRank `gorm:"type:varchar(255);default:none"`
+}
+
+func (u *User) BeforeSave(tx *gorm.DB) (err error) {
+	if u.SquadronRank == SquadronRankNone {
+		u.IsSquadronMember = false
+	} else {
+		u.IsSquadronMember = true
+	}
+	return nil
+}
+
+func GetCommanderSquadronRankSortingOrder() string {
+	return "CASE squadron_rank " +
+		"WHEN 'ruehrer' THEN 1 " +
+		"WHEN 'vize-ruehrer' THEN 2 " +
+		"WHEN 'loeffler' THEN 3 " +
+		"WHEN 'bruehwuerfel' THEN 4 " +
+		"WHEN 'brei' THEN 5 " +
+		"ELSE 6 END, cmdr_name ASC"
+}
+
+type UsersBySquadronRank struct {
+	SquadronRank SquadronRank
+	Users        []User
 }
 
 // Whether the user has two factor authentication enabled and verified.

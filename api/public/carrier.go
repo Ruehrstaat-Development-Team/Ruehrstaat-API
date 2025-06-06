@@ -29,7 +29,7 @@ func publicGetCarrier(c *gin.Context) {
 func publicGetAllCarriers(c *gin.Context) {
 	carriers := []entities.Carrier{}
 	if res := db.DB.Preload("Owner").Order(entities.GetCarrierCategorySortingOrder()).Find(&carriers); res.Error != nil {
-		c.JSON(404, gin.H{"error": "Carriers not found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
@@ -39,7 +39,7 @@ func publicGetAllCarriers(c *gin.Context) {
 func publicGetAllCarriersSortedByCategory(c *gin.Context) {
 	tmpCarriers := []entities.Carrier{}
 	if res := db.DB.Preload("Owner").Order(entities.GetCarrierCategorySortingOrder()).Find(&tmpCarriers); res.Error != nil {
-		c.JSON(404, gin.H{"error": "Carriers not found"})
+		errors.ReturnWithError(c, carrier.ErrCarrierNotFound)
 		return
 	}
 
