@@ -205,6 +205,14 @@ const (
 	DockingAccessSquadronAndFriends CarrierDockingAccess = "squadronfriends"
 )
 
+var CarrierDockingAccesses = []CarrierDockingAccess{
+	DockingAccessAll,
+	DockingAccessNone,
+	DockingAccessFriends,
+	DockingAccessSquadron,
+	DockingAccessSquadronAndFriends,
+}
+
 type CarrierCategory string
 
 const (
@@ -213,6 +221,13 @@ const (
 	CarrierCategoryFreighter     CarrierCategory = "freighter"
 	CarrierCategorySupportVessel CarrierCategory = "supportvessel"
 )
+
+var CarrierCategories = []CarrierCategory{
+	CarrierCategoryFlagship,
+	CarrierCategoryFreighter,
+	CarrierCategorySupportVessel,
+	CarrierCategoryOther,
+}
 
 func GetCarrierCategorySortingOrder() string {
 	return "CASE category " +

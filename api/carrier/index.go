@@ -27,6 +27,9 @@ func RegisterRoutes(api *gin.RouterGroup) {
 	carrierApi.GET("/service", getAllServices)
 	carrierApi.GET("/service/:name", getCarrierService)
 
+	carrierApi.GET("/category", GetCategories)
+	carrierApi.GET("/docking", GetDockingAccesses)
+
 	connectorApi := carrierApi.Group("/connector")
 	connectorApi.PUT("/jump", carrierJump)
 	connectorApi.PUT("/access", updateCarrierDockingAccess)
