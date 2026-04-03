@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
@@ -43,19 +44,43 @@ func main() {
 		log.Println("Couldn't load .env file")
 	}
 
-	go setup()
+	server, err := setup()
+	if err != nil {
+		log.Printf("Startup failed: %v", err)
+		panic(err)
+	}
 
-	<-ctx.Done()
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Println("Shutdown signal received")
+	case err := <-serverErr:
+		if err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
+		return
+	}
 
 	if os.Getenv("CRON") == "true" {
 		log.Println("Shutting down cron system...")
 		//cron.StopCron()
 	}
 
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Shutdown error: %v", err)
+	}
+
 	log.Println("Shutdown complete")
 }
 
-func setup() {
+func setup() (*http.Server, error) {
+	log.Println("Startup phase: sentry")
 	sentryEnv := getSentryEnv()
 	sentryDSN := os.Getenv("SENTRY_DSN")
 	if sentryDSN == "" {
@@ -78,30 +103,44 @@ func setup() {
 			TracesSampleRate: samplingRate,
 			SampleRate:       samplingRate,
 		}); err != nil {
-			panic(err)
+			return nil, fmt.Errorf("startup phase sentry: %w", err)
 		}
 	}
+	log.Println("Startup phase complete: sentry")
 
+	log.Println("Startup phase: auth providers")
 	discord.Initialize()
 	auth.InitializeWebauthn()
+	log.Println("Startup phase complete: auth providers")
+
+	log.Println("Startup phase: security audit log")
 	if err := logging.InitSecurityAuditLog(); err != nil {
 		log.Printf("Warning: Failed to initialize security audit log: %v", err)
 	}
+	log.Println("Startup phase complete: security audit log")
 
-	db.Initialize()
-	cache.Initialize()
-
-	if os.Getenv("MORIA_ENABLED") == "true" {
-		moria.InitMoria(os.Getenv("MORIA_URL"), os.Getenv("MORIA_TOKEN"))
+	if err := runStartupPhase("database", db.Initialize); err != nil {
+		return nil, err
 	}
 
+	if err := runStartupPhase("redis", cache.Initialize); err != nil {
+		return nil, err
+	}
+
+	if os.Getenv("MORIA_ENABLED") == "true" {
+		log.Println("Startup phase: moria")
+		moria.InitMoria(os.Getenv("MORIA_URL"), os.Getenv("MORIA_TOKEN"))
+		log.Println("Startup phase complete: moria")
+	}
+
+	log.Println("Startup phase: http server")
 	r := gin.New()
 	trustedProxies, trustedProxyErr := auth.TrustedProxiesFromEnv()
 	if trustedProxyErr != nil {
-		panic(trustedProxyErr)
+		return nil, fmt.Errorf("startup phase http server: %w", trustedProxyErr)
 	}
 	if err := r.SetTrustedProxies(trustedProxies); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("startup phase http server: %w", err)
 	}
 	if useSentry {
 		r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
@@ -119,10 +158,18 @@ func setup() {
 			log.Println("Cron system disabled")
 		}*/
 
-	err := r.Run(":8000")
-	if err != nil {
-		log.Println("Error: ", err)
+	log.Println("Startup phase complete: http server")
+	log.Println("Listening on :8000")
+	return &http.Server{Addr: ":8000", Handler: r}, nil
+}
+
+func runStartupPhase(name string, fn func() error) error {
+	log.Printf("Startup phase: %s", name)
+	if err := fn(); err != nil {
+		return fmt.Errorf("startup phase %s: %w", name, err)
 	}
+	log.Printf("Startup phase complete: %s", name)
+	return nil
 }
 
 func getSentryEnv() string {

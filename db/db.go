@@ -21,28 +21,37 @@ var DB *gorm.DB
 
 var log = logging.Logger{Package: "db"}
 
-func Initialize() {
-	dsn := "host=" + os.Getenv("DB_HOST") + " user=" + os.Getenv("DB_USER") + " password=" + os.Getenv("DB_PASS") + " dbname=" + os.Getenv("DB_NAME") + " port=" + os.Getenv("DB_PORT") + " sslmode=disable TimeZone=Europe/Berlin"
+const startupTimeout = 5 * time.Second
+
+func Initialize() error {
+	dsn := "host=" + os.Getenv("DB_HOST") + " user=" + os.Getenv("DB_USER") + " password=" + os.Getenv("DB_PASS") + " dbname=" + os.Getenv("DB_NAME") + " port=" + os.Getenv("DB_PORT") + " sslmode=disable TimeZone=Europe/Berlin connect_timeout=5"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("open database connection: %w", err)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("get sql database handle: %w", err)
 	}
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	startupCtx, cancel := context.WithTimeout(context.Background(), startupTimeout)
+	defer cancel()
+
+	if err := sqlDB.PingContext(startupCtx); err != nil {
+		return fmt.Errorf("ping database: %w", err)
+	}
 
 	db.Use(&GormSentryPlugin{})
 
 	DB = db
 	log.Println("Database initialized")
 
-	if res := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"); res.Error != nil {
-		panic(res.Error)
+	if res := db.WithContext(startupCtx).Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"); res.Error != nil {
+		return fmt.Errorf("enable uuid extension: %w", res.Error)
 	}
 
 	useAutoMigrate := os.Getenv("DB_AUTOMIGRATE") == "true"
@@ -51,7 +60,7 @@ func Initialize() {
 		log.Println("Skipping database migration")
 	} else {
 		log.Println("Running database migration")
-		err = db.AutoMigrate(
+		err = db.WithContext(startupCtx).AutoMigrate(
 			&entities.InfraToken{},
 			&entities.User{},
 			&entities.RefreshToken{},
@@ -61,19 +70,64 @@ func Initialize() {
 			&entities.Carrier{},
 		)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("auto migrate database schema: %w", err)
 		}
 		log.Println("Database Migration complete")
 	}
 
 	if runTrackedMigrations {
-		migrations.RunMigrations(DB)
+		if err := runTrackedMigrationsWithTimeout(startupCtx, DB); err != nil {
+			return err
+		}
 	} else {
 		log.Println("Skipping tracked migrations (enable DB_AUTOMIGRATE=true or DB_RUN_TRACKED_MIGRATIONS=true to run them)")
 	}
 
-	if err := migrations.ValidateRuntimeSchema(DB); err != nil {
-		panic(err)
+	if err := validateRuntimeSchemaWithTimeout(startupCtx, DB); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runTrackedMigrationsWithTimeout(ctx context.Context, db *gorm.DB) error {
+	errCh := make(chan error, 1)
+	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				errCh <- fmt.Errorf("tracked migrations panicked: %v", rec)
+			}
+		}()
+
+		migrations.RunMigrations(db)
+		errCh <- nil
+	}()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("run tracked migrations: %w", ctx.Err())
+	case err := <-errCh:
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func validateRuntimeSchemaWithTimeout(ctx context.Context, db *gorm.DB) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- migrations.ValidateRuntimeSchema(db)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("validate runtime schema: %w", ctx.Err())
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("validate runtime schema: %w", err)
+		}
+		return nil
 	}
 }
 

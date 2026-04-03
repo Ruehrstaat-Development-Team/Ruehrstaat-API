@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"ruehrstaat-backend/util"
 	"time"
@@ -14,21 +15,30 @@ var (
 	Redis *redis.Client
 )
 
-func Initialize() {
+const startupTimeout = 5 * time.Second
+
+func Initialize() error {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
-		Password: os.Getenv("REDIS_PASS"),
-		DB:       0,
+		Addr:         os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
+		Password:     os.Getenv("REDIS_PASS"),
+		DB:           0,
+		DialTimeout:  startupTimeout,
+		ReadTimeout:  startupTimeout,
+		WriteTimeout: startupTimeout,
 	})
 
-	_, err := rdb.Ping(context.Background()).Result()
+	startupCtx, cancel := context.WithTimeout(context.Background(), startupTimeout)
+	defer cancel()
+
+	_, err := rdb.Ping(startupCtx).Result()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("ping redis: %w", err)
 	}
 
 	Redis = rdb
 
 	initializeLocking()
+	return nil
 }
 
 // Creates a cached state for the given data.

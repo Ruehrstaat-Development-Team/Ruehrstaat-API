@@ -2,7 +2,7 @@ version: '3.1'
 
 services:
   db:
-    image: postgres
+    image: postgres:18
     ports:
       - ${DB_PORT}:5432
     environment:
@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
     volumes:
-      - db:/var/lib/postgresql/data
+      - db:/var/lib/postgresql
 
   redis:
     image: redis
