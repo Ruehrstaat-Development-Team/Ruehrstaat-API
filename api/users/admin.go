@@ -12,8 +12,8 @@ import (
 )
 
 func adminGetUsers(c *gin.Context) {
-	_, authorized := auth.AutoAuthorizeAdmin(c)
-	if !authorized {
+	if _, authErr := auth.RequireSessionBoundAdmin(c); authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 
@@ -29,8 +29,8 @@ func adminGetUsers(c *gin.Context) {
 }
 
 func adminCreateUser(c *gin.Context) {
-	_, authorized := auth.AutoAuthorizeAdmin(c)
-	if !authorized {
+	if _, _, authErr := auth.RequireFreshAdminSession(c); authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 
@@ -46,7 +46,7 @@ func adminCreateUser(c *gin.Context) {
 		body.IsAdmin = &isAdmin
 	}
 
-	err := auth.Register(body.Email, body.Password, body.Nickname, body.CmdrName, *body.IsAdmin)
+	err := auth.Register(c, body.Email, body.Password, body.Nickname, body.CmdrName, *body.IsAdmin)
 	if err == auth.ErrInvalidEmail {
 		errors.ReturnWithError(c, err)
 		return
@@ -60,15 +60,9 @@ func adminCreateUser(c *gin.Context) {
 	}
 
 	user := &entities.User{}
-	if res := db.DB.Where("email = ?", body.Email).First(user); res.Error != nil {
-		c.Error(res.Error)
+	if err := auth.FindUniqueUserByEmail(c.Request.Context(), body.Email, user); err != nil {
+		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrAdminFailedToGetFromDB)
-		return
-	}
-
-	if res := db.DB.Save(user); res.Error != nil {
-		c.Error(res.Error)
-		errors.ReturnWithError(c, auth.ErrAdminFailedToSaveToDB)
 		return
 	}
 

@@ -50,27 +50,27 @@ func GetOAuthUrl(conf *oauth2.Config, state string, codeVerifier string) string 
 func RetrieveOAuthUser(conf *oauth2.Config, state string, code string, codeVerifier string) (bool, *DiscordUser) {
 	token, err := conf.Exchange(context.Background(), code, oauth2.SetAuthURLParam("code_verifier", codeVerifier))
 	if err != nil {
-		log.Printf(err.Error())
+		log.Printf("%v", err)
 		return false, nil
 	}
 
 	res, err := conf.Client(context.Background(), token).Get("https://discord.com/api/users/@me")
 	if err != nil {
-		log.Printf(err.Error())
+		log.Printf("%v", err)
 		return false, nil
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Printf("%v", err)
 		return false, nil
 	}
 
 	discordUser := &DiscordUser{}
 
 	if err := jsoniter.Unmarshal(body, &discordUser); err != nil {
-		log.Printf(err.Error())
+		log.Printf("%v", err)
 		return false, nil
 	}
 

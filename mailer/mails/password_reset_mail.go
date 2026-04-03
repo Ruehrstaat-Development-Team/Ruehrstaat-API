@@ -1,17 +1,13 @@
 package mails
 
-import (
-	"os"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 type PasswordResetMail struct {
 	UserID   uuid.UUID
 	Totp     bool
 	Email    string
 	Nickname string
-	Token    string
+	Ref      string
 }
 
 func (m PasswordResetMail) GetSubject(locale string) string {
@@ -24,7 +20,7 @@ func (m PasswordResetMail) GetSubject(locale string) string {
 }
 
 func (m PasswordResetMail) GetBody(locale string) string {
-	link := os.Getenv("FRONTEND_URL") + "/reset-password/" + m.UserID.String() + "?reset=" + m.Token + "&totp=" + (map[bool]string{true: "true", false: "false"}[m.Totp])
+	link := resolveLocalizedFrontendLink(locale, "/reset-password/"+m.UserID.String(), "ret="+m.Ref+"&totp="+(map[bool]string{true: "true", false: "false"}[m.Totp]))
 	switch locale {
 	case "de":
 		return "Um dein Passwort zurückzusetzen, klicke bitte auf den folgenden Button: \n<a href=\"" + link + "\">Jetzt zurücksetzen!</a>\n\nFalls dieser nicht geht, versuche diesen Link:\n<a href=\"" + link + "\">" + link + "</a>\nWichtig: Dieser Link läuft nach 1 Stunde ab!"

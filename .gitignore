@@ -9,5 +9,6 @@ main.exe
 .bin/
 
 backend.log
+security_audit.log
 prod-docker-compose.yml
 .env.live

@@ -11,10 +11,15 @@ import (
 )
 
 func requestQuickLoginToken(c *gin.Context) {
-	token, sessionId, err := auth.RequestQuickLoginToken()
+	token, sessionId, err := auth.RequestQuickLoginToken(c.Request.Context(), c.ClientIP())
 	if err != nil {
 		c.Error(err.Error())
+		if err == auth.ErrQuickloginRequestRateLimited {
+			errors.ReturnWithError(c, err)
+			return
+		}
 		errors.ReturnWithError(c, auth.ErrQuickloginTokenRequestFailed)
+		return
 	}
 
 	c.JSON(200, gin.H{"token": token, "sessionId": sessionId})
@@ -25,9 +30,9 @@ type verifyQuickLoginTokenDTO struct {
 }
 
 func verifyQuickLoginToken(c *gin.Context) {
-	user, authorized := auth.AutoAuthorize(c)
-	if !authorized {
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, err := auth.RequireSessionBoundAuth(c)
+	if err != nil {
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -39,9 +44,13 @@ func verifyQuickLoginToken(c *gin.Context) {
 
 	token := verifyDTO.Token
 
-	err := auth.VerifyQuickLoginToken(token, user)
+	err = auth.VerifyQuickLoginToken(c.Request.Context(), token, user)
 	if err != nil {
 		c.Error(err.Error())
+		if err == auth.ErrQuickloginRateLimited || err == auth.ErrInvalidToken {
+			errors.ReturnWithError(c, err)
+			return
+		}
 		errors.ReturnWithError(c, auth.ErrQuickloginTokenValidationFailed)
 		return
 	}
@@ -55,6 +64,11 @@ type completeQuickLoginDTO struct {
 }
 
 func completeQuickLogin(c *gin.Context) {
+	if err := auth.ValidateSessionEstablishingRequest(c.Request); err != nil {
+		errors.ReturnWithError(c, err)
+		return
+	}
+
 	dto := completeQuickLoginDTO{}
 	if err := c.ShouldBindJSON(&dto); err != nil {
 		errors.ReturnWithError(c, dtoerr.InvalidDTO)
@@ -90,12 +104,12 @@ func completeQuickLogin(c *gin.Context) {
 		return
 	}
 
-	jwttoken, err := auth.CreateTokenPairForUser(&user)
+	jwttoken, err := auth.CreateTokenPairForUser(c, &user)
 	if err != nil {
 		c.Error(err.Error())
 		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
 		return
 	}
 
-	c.JSON(200, gin.H{"token": jwttoken, "refreshToken": jwttoken.RefreshToken})
+	writeSessionTokenResponse(c, jwttoken)
 }

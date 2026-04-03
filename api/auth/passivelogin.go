@@ -11,9 +11,13 @@ import (
 )
 
 func requestPassiveLoginToken(c *gin.Context) {
-	token, sessionId, err := auth.RequestPassiveLoginToken()
+	token, sessionId, err := auth.RequestPassiveLoginToken(c.Request.Context(), c.ClientIP())
 	if err != nil {
 		c.Error(err.Error())
+		if err == auth.ErrPassiveLoginRequestRateLimited {
+			errors.ReturnWithError(c, err)
+			return
+		}
 		errors.ReturnWithError(c, auth.ErrPassiveLoginTokenRequestFailed)
 		return
 	}
@@ -26,9 +30,9 @@ type VerifyPassiveLoginTokenDTO struct {
 }
 
 func verifyPassiveLoginToken(c *gin.Context) {
-	user, authorized := auth.AutoAuthorize(c)
-	if !authorized {
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, err := auth.RequireSessionBoundAuth(c)
+	if err != nil {
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -40,9 +44,13 @@ func verifyPassiveLoginToken(c *gin.Context) {
 
 	token := verifyDTO.Token
 
-	err := auth.VerifyPassiveLoginToken(token, user)
+	err = auth.VerifyPassiveLoginToken(c.Request.Context(), token, user)
 	if err != nil {
 		c.Error(err.Error())
+		if err == auth.ErrPassiveLoginRateLimited || err == auth.ErrInvalidToken {
+			errors.ReturnWithError(c, err)
+			return
+		}
 		errors.ReturnWithError(c, auth.ErrPassiveLoginTokenValidationFailed)
 		return
 	}
@@ -56,6 +64,11 @@ type CompletePassiveLoginDTO struct {
 }
 
 func completePassiveLogin(c *gin.Context) {
+	if err := auth.ValidateSessionEstablishingRequest(c.Request); err != nil {
+		errors.ReturnWithError(c, err)
+		return
+	}
+
 	dto := CompletePassiveLoginDTO{}
 	if err := c.ShouldBindJSON(&dto); err != nil {
 		errors.ReturnWithError(c, dtoerr.InvalidDTO)
@@ -68,6 +81,10 @@ func completePassiveLogin(c *gin.Context) {
 	userId, err := auth.CompletePassiveLogin(token, sessionID)
 	if err != nil {
 		c.Error(err.Error())
+		if err == auth.ErrPassiveLoginTokenNotYetVerified {
+			errors.ReturnWithError(c, err)
+			return
+		}
 		errors.ReturnWithError(c, auth.ErrPassiveLoginCompletionFailed)
 		return
 	}
@@ -75,7 +92,7 @@ func completePassiveLogin(c *gin.Context) {
 	var user entities.User
 	if res := db.DB.Where("id = ?", userId).First(&user); res.Error != nil {
 		c.Error(res.Error)
-		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
+		errors.ReturnWithError(c, auth.ErrPassiveLoginCompletionFailed)
 		return
 	}
 
@@ -86,17 +103,17 @@ func completePassiveLogin(c *gin.Context) {
 		} else if err == auth.ErrUserNotActivated {
 			errors.ReturnWithError(c, auth.ErrUserNotActivated)
 		} else {
-			errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
+			errors.ReturnWithError(c, auth.ErrPassiveLoginCompletionFailed)
 		}
 		return
 	}
 
-	jwttoken, err := auth.CreateTokenPairForUser(&user)
+	jwttoken, err := auth.CreateTokenPairForUser(c, &user)
 	if err != nil {
 		c.Error(err.Error())
-		errors.ReturnWithError(c, auth.ErrQuickloginCompletionFailed)
+		errors.ReturnWithError(c, auth.ErrPassiveLoginCompletionFailed)
 		return
 	}
 
-	c.JSON(200, gin.H{"token": jwttoken, "refreshToken": jwttoken.RefreshToken})
+	writeSessionTokenResponse(c, jwttoken)
 }

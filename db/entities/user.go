@@ -1,6 +1,10 @@
 package entities
 
 import (
+	"time"
+
+	"ruehrstaat-backend/util"
+
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
@@ -88,15 +92,33 @@ func (u *User) HasTwoFactor() bool {
 }
 
 type RefreshToken struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;index"`
-	Token     string    `gorm:"type:text;not null;index"`
-	IsRevoked bool      `gorm:"type:boolean;default:false"`
+	ID          uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	UserID      uuid.UUID `gorm:"type:uuid;not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;index"`
+	Token       string    `gorm:"type:text;not null;index"`
+	TokenHash   string    `gorm:"type:text;index"`
+	IsRevoked   bool      `gorm:"type:boolean;default:false;index"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	LastUsedAt  *time.Time
+	ExpiresAt   time.Time `gorm:"index"`
+	AuthTime    time.Time `gorm:"type:timestamp;not null;default:now()"`
+	ClientIP    string    `gorm:"type:varchar(64)"`
+	UserAgent   string    `gorm:"type:text"`
+	DeviceName  *string   `gorm:"type:varchar(255)"`
+	Country     *string   `gorm:"type:varchar(128)"`
+	Region      *string   `gorm:"type:varchar(128)"`
+	City        *string   `gorm:"type:varchar(128)"`
+	SessionType string    `gorm:"type:varchar(32);not null;default:'browser'"`
 }
+
+const (
+	SessionTypeBrowser = "browser"
+	SessionTypeService = "service"
+)
 
 type Fido2Login struct {
 	UserID      uuid.UUID `gorm:"type:uuid;not null;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;primaryKey" json:"user_id"`
-	DisplayName string    `gorm:"type:varchar(255);not null;unique;primaryKey" json:"display_name"`
+	DisplayName string    `gorm:"type:varchar(255);not null;primaryKey" json:"display_name"`
 	Name        string    `gorm:"type:varchar(255);not null" json:"name"`
 	Data        string    `gorm:"type:text;not null" json:"data"`
 }
@@ -116,9 +138,14 @@ func (u *Fido2Login) WebAuthnDisplayName() string {
 func (u *Fido2Login) WebAuthnCredentials() []webauthn.Credential {
 	cred := &webauthn.Credential{}
 
-	err := jsoniter.UnmarshalFromString(u.Data, cred)
+	data, err := util.FidoDecryptString(u.Data)
 	if err != nil {
-		panic(err)
+		return nil
+	}
+
+	err = jsoniter.UnmarshalFromString(data, cred)
+	if err != nil {
+		return nil
 	}
 
 	return []webauthn.Credential{*cred}

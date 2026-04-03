@@ -1,16 +1,12 @@
 package mails
 
-import (
-	"os"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 type ActivationMail struct {
 	UserID   uuid.UUID
 	Email    string
 	Nickanme string
-	Token    string
+	Ref      string
 }
 
 func (m ActivationMail) GetSubject(locale string) string {
@@ -23,7 +19,7 @@ func (m ActivationMail) GetSubject(locale string) string {
 }
 
 func (m ActivationMail) GetBody(locale string) string {
-	link := os.Getenv("FRONTEND_URL") + "/activate/" + m.UserID.String() + "?activation=" + m.Token
+	link := resolveLocalizedFrontendLink(locale, "/activate/"+m.UserID.String(), "activation="+m.Ref)
 	switch locale {
 	case "de":
 		return "Um deinen Account zu aktivieren, klicke bitte auf den folgenden Button: \n<a href=\"" + link + "\">Jetzt aktivieren!</a>\n\nFalls dieser nicht geht, versuche diesen Link:\n<a href=\"" + link + "\">" + link + "</a>\nWichtig: Dieser Link läuft nach 72 Stunden ab! Falls du einen neuen brauchst, versuche dich einmal auf unserer Seite einzuloggen. Der Login wird zwar fehlschlagen, aber du kannst dann dort direkt einen neuen Aktivierungslink anfordern."

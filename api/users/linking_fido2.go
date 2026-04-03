@@ -1,6 +1,7 @@
 package users
 
 import (
+	"ruehrstaat-backend/api/dtoerr"
 	"ruehrstaat-backend/auth"
 	"ruehrstaat-backend/db"
 	"ruehrstaat-backend/db/entities"
@@ -11,10 +12,10 @@ import (
 )
 
 func beginFido2Link(c *gin.Context) {
-	user := auth.Extract(c)
-	if user == nil {
-		c.Error(auth.ErrInvalidToken.Error())
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, session, err := auth.RequireFreshBrowserSession(c)
+	if err != nil {
+		c.Error(err.Error())
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -23,7 +24,7 @@ func beginFido2Link(c *gin.Context) {
 		displayName = user.Email + " FIDO2 Schlüssel"
 	}
 
-	state, options, err := auth.BeginFido2Register(user, displayName)
+	state, options, err := auth.BeginFido2Register(user, session, displayName)
 	if err != nil {
 		c.Error(err.Error())
 		panic(err)
@@ -33,10 +34,10 @@ func beginFido2Link(c *gin.Context) {
 }
 
 func endFido2Link(c *gin.Context) {
-	user := auth.Extract(c)
-	if user == nil {
-		c.Error(auth.ErrInvalidToken.Error())
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, session, err := auth.RequireFreshBrowserSession(c)
+	if err != nil {
+		c.Error(err.Error())
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -49,11 +50,17 @@ func endFido2Link(c *gin.Context) {
 	pcc, perr := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
 	if perr != nil {
 		c.Error(perr)
-		panic(perr)
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
+		return
 	}
 
-	err := auth.FinishFido2Register(state, user, pcc)
+	err = auth.FinishFido2Register(c, state, user, session, pcc)
 	if err != nil {
+		if err == auth.ErrInvalidState || err == auth.ErrDuplicateFidoDisplayName || err == auth.ErrInvalidFido2Ceremony {
+			errors.ReturnWithError(c, err)
+			return
+		}
+
 		c.Error(err.Error())
 		panic(err)
 	}
@@ -62,10 +69,10 @@ func endFido2Link(c *gin.Context) {
 }
 
 func unlinkFido2(c *gin.Context) {
-	user := auth.Extract(c)
-	if user == nil {
-		c.Error(auth.ErrInvalidToken.Error())
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, _, err := auth.RequireFreshBrowserSession(c)
+	if err != nil {
+		c.Error(err.Error())
+		errors.ReturnWithError(c, err)
 		return
 	}
 
@@ -75,7 +82,7 @@ func unlinkFido2(c *gin.Context) {
 		return
 	}
 
-	err := auth.DeleteFido2Login(user, user.ID, name)
+	err = auth.DeleteFido2Login(c, user, user.ID, name)
 	if err != nil {
 		c.Error(err.Error())
 		panic(err)
@@ -85,10 +92,9 @@ func unlinkFido2(c *gin.Context) {
 }
 
 func getFido2Links(c *gin.Context) {
-	user := auth.Extract(c)
-	if user == nil {
-		c.Error(auth.ErrInvalidToken.Error())
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, authErr := auth.RequireSessionBoundAuth(c)
+	if authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 

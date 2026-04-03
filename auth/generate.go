@@ -3,8 +3,9 @@ package auth
 import (
 	"log"
 	"os"
-	"ruehrstaat-backend/errors"
 	"time"
+
+	"ruehrstaat-backend/errors"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -22,7 +23,7 @@ func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, *erro
 		return TokenPair{}, ErrAbsoluteExpReached
 	}
 
-	exp := time.Now().Add(time.Hour * 6).Unix()
+	exp := time.Now().Add(time.Hour).Unix()
 	identityToken, err := generateToken(getIdentityTokenSecret(), userID.String(), exp)
 	if err != nil {
 		return TokenPair{}, err
@@ -38,6 +39,49 @@ func generatePair(userID uuid.UUID, absoluteExpiration *int64) (TokenPair, *erro
 		IdenityToken: identityToken,
 		ExpiresAt:    exp,
 	}, nil
+}
+
+func generateIdentityTokenWithSession(secret string, sub string, sid uuid.UUID, exp int64) (tokenString string, jti string, err *errors.RstError) {
+	currTime := time.Now().Unix()
+	jti = uuid.New().String()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"iss": "Ruehrstaat Auth",
+		"aud": "ruehrstaat.org",
+		"sub": sub,
+		"sid": sid.String(),
+		"exp": exp,
+		"iat": currTime,
+		"nbf": currTime,
+		"jti": jti,
+	})
+
+	val, signErr := token.SignedString([]byte(secret))
+	if signErr != nil {
+		return "", "", errors.NewFromError(signErr)
+	}
+
+	return val, jti, nil
+}
+
+func generateRefreshTokenWithSession(secret string, sub string, sid uuid.UUID, exp int64) (tokenString string, err *errors.RstError) {
+	currTime := time.Now().Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"iss": "Ruehrstaat Auth",
+		"aud": "ruehrstaat.org",
+		"sub": sub,
+		"sid": sid.String(),
+		"exp": exp,
+		"iat": currTime,
+		"nbf": currTime,
+		"jti": uuid.New().String(),
+	})
+
+	val, signErr := token.SignedString([]byte(secret))
+	if signErr != nil {
+		return "", errors.NewFromError(signErr)
+	}
+
+	return val, nil
 }
 
 func generateToken(secret string, sub string, exp int64) (string, *errors.RstError) {
@@ -81,7 +125,13 @@ func generateCustomToken(subject string, aud string, hoursExp int) (string, *err
 func getIdentityTokenSecret() string {
 	secret, ok := os.LookupEnv("JWT_IDENTITY_SECRET")
 	if !ok {
-		log.Println("WARNING!!! JWT_IDENTITY_SECRET not set, using default value")
+		log.Println("FATAL: JWT_IDENTITY_SECRET environment variable is not set")
+		panic("JWT_IDENTITY_SECRET is required for secure token generation")
+	}
+
+	if len(secret) < 32 {
+		log.Println("FATAL: JWT_IDENTITY_SECRET is too short (minimum 32 characters)")
+		panic("JWT_IDENTITY_SECRET must be at least 32 characters long")
 	}
 
 	return secret
@@ -90,8 +140,13 @@ func getIdentityTokenSecret() string {
 func getRefreshTokenSecret() string {
 	secret, ok := os.LookupEnv("JWT_REFRESH_SECRET")
 	if !ok {
-		log.Println("WARNING!!! JWT_REFRESH_SECRET not set, using default value")
-		return "secret"
+		log.Println("FATAL: JWT_REFRESH_SECRET environment variable is not set")
+		panic("JWT_REFRESH_SECRET is required for secure token generation")
+	}
+
+	if len(secret) < 16 {
+		log.Println("FATAL: JWT_REFRESH_SECRET is too short (minimum 16 characters)")
+		panic("JWT_REFRESH_SECRET must be at least 16 characters long")
 	}
 
 	return secret

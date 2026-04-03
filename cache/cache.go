@@ -57,8 +57,7 @@ func BeginSpecificState(category string, state string, payload any, duration tim
 	Redis.Set(context.Background(), "state:"+category+":"+state, string(data), duration)
 }
 
-// Deletes a cached state.
-func EndState(category string, state string, payload any) bool {
+func GetState(category string, state string, payload any) bool {
 	data, err := Redis.Get(context.Background(), "state:"+category+":"+state).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -73,9 +72,34 @@ func EndState(category string, state string, payload any) bool {
 		panic(err)
 	}
 
-	Redis.Del(context.Background(), "state:"+category+":"+state)
+	return true
+}
+
+func EndState(category string, state string, payload any) bool {
+	data, err := Redis.GetDel(context.Background(), "state:"+category+":"+state).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return false
+		}
+
+		panic(err)
+	}
+
+	err = jsoniter.Unmarshal([]byte(data), payload)
+	if err != nil {
+		panic(err)
+	}
 
 	return true
+}
+
+func DeleteState(category string, state string) bool {
+	deleted, err := Redis.Del(context.Background(), "state:"+category+":"+state).Result()
+	if err != nil {
+		panic(err)
+	}
+
+	return deleted > 0
 }
 
 // Checks if a cached state exists.

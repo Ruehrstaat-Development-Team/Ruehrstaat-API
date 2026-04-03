@@ -15,6 +15,24 @@ type changeEmailBody struct {
 	Otp      *string `json:"otp"`
 }
 
+type activateUserBody struct {
+	Activation string `json:"activation" binding:"required"`
+}
+
+type requestPasswordResetBody struct {
+	Email string `json:"email" binding:"required"`
+}
+
+type resetPasswordBody struct {
+	ResetToken string  `json:"resetToken" binding:"required"`
+	Password   string  `json:"password" binding:"required"`
+	Otp        *string `json:"otp"`
+}
+
+type confirmEmailChangeBody struct {
+	EmailChangeToken string `json:"emailChangeToken" binding:"required"`
+}
+
 type adminCreateUserBody struct {
 	Email    string `json:"email" binding:"required"`
 	Nickname string `json:"nickname" binding:"required"`

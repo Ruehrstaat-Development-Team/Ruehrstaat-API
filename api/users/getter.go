@@ -30,10 +30,9 @@ func findUser(current *entities.User, userIdStr string) (*entities.User, *errors
 }
 
 func getUser(c *gin.Context) {
-	current := auth.Extract(c)
-	if current == nil {
-		c.Error(auth.ErrInvalidToken.Error())
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	current, authErr := auth.RequireSessionBoundAuth(c)
+	if authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 	user, err := findUser(current, c.Param("id"))

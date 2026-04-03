@@ -19,8 +19,8 @@ func RegisterRoutes(api *gin.RouterGroup) {
 }
 
 func getMoriaInfo(c *gin.Context) {
-	_, authorized := auth.AutoAuthorize(c)
-	if !authorized {
+	if _, err := auth.RequireSessionBoundAuth(c); err != nil {
+		errors.ReturnWithError(c, err)
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 	"ruehrstaat-backend/db/entities"
 	"ruehrstaat-backend/errors"
 	"ruehrstaat-backend/mailer"
+	"ruehrstaat-backend/services/user_service"
 
 	"ruehrstaat-backend/services/locale"
 
@@ -24,13 +25,15 @@ func activateUser(c *gin.Context) {
 		return
 	}
 
-	activationToken := c.Query("activation")
-	if activationToken == "" {
-		errors.ReturnWithError(c, auth.ErrInvalidActivationToken)
+	dto := activateUserBody{}
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		c.Error(err)
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
+	activationToken := auth.ResolveActivationTokenReference(dto.Activation)
 
-	if err := auth.ActivateAccount(userId, activationToken); err != nil {
+	if err := auth.ActivateAccount(c, userId, activationToken); err != nil {
 		if err == auth.ErrUserNotFound {
 			c.Error(err.Error())
 			errors.ReturnWithError(c, auth.ErrForbidden)
@@ -51,6 +54,8 @@ func activateUser(c *gin.Context) {
 		panic(err)
 	}
 
+	auth.DeleteActivationTokenReference(dto.Activation)
+
 	c.JSON(200, gin.H{"message": "User activated successfully"})
 }
 
@@ -62,7 +67,7 @@ func resendUserActivation(c *gin.Context) {
 	}
 
 	var userId *uuid.UUID
-	if ok := cache.EndState("resend_activate", activateState, &userId); !ok {
+	if ok := cache.GetState("resend_activate", activateState, &userId); !ok {
 		errors.ReturnWithError(c, auth.ErrInvalidActivationState)
 		return
 	}
@@ -79,35 +84,43 @@ func resendUserActivation(c *gin.Context) {
 		panic(res.Error)
 	}
 
-	if err := auth.GenerateActivationToken(user); err != nil {
+	if err := auth.GenerateActivationToken(c, user); err != nil {
 		c.Error(err.Error())
 		panic(err)
 	}
+
+	cache.DeleteState("resend_activate", activateState)
 
 	c.JSON(200, gin.H{"message": "Activation token sent successfully"})
 }
 
 func requestPasswordReset(c *gin.Context) {
-	email := c.Query("email")
-	if email == "" {
-		errors.ReturnWithError(c, auth.ErrInvalidEmail)
+	dto := requestPasswordResetBody{}
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		c.Error(err)
+		errors.ReturnWithError(c, dtoerr.InvalidDTO)
+		return
+	}
+
+	if err := auth.CheckAndIncrementPasswordResetRequestRateLimit(c.Request.Context(), dto.Email, c.ClientIP()); err != nil {
+		c.Error(err.Error())
+		c.JSON(200, gin.H{"message": "Reset token sent successfully"})
 		return
 	}
 
 	user := &entities.User{}
-	if res := db.DB.Where("email = ?", email).First(user); res.Error != nil {
-		if res.Error == gorm.ErrRecordNotFound {
-			c.Error(res.Error)
-			c.Error(auth.ErrUserNotFound.Error())
-			errors.ReturnWithError(c, auth.ErrForbidden)
+	if err := auth.FindUniqueUserByEmail(c.Request.Context(), dto.Email, user); err != nil {
+		if err == auth.ErrUserNotFound || err == auth.ErrEmailAmbiguous {
+			c.Error(err.Error())
+			c.JSON(200, gin.H{"message": "Reset token sent successfully"})
 			return
 		}
 
-		c.Error(res.Error)
-		panic(res.Error)
+		c.Error(err.Error())
+		panic(err)
 	}
 
-	if err := auth.GenerateResetPasswordToken(user); err != nil {
+	if err := auth.GenerateResetPasswordToken(c, user); err != nil {
 		c.Error(err.Error())
 		panic(err)
 	}
@@ -128,23 +141,15 @@ func resetPassword(c *gin.Context) {
 		return
 	}
 
-	token := c.Query("ret")
-	if token == "" {
-		errors.ReturnWithError(c, auth.ErrInvalidResetToken)
-		return
-	}
-
-	dto := &struct {
-		Password string  `json:"password"`
-		Otp      *string `json:"otp"`
-	}{}
-	if err := c.ShouldBindJSON(dto); err != nil {
+	dto := resetPasswordBody{}
+	if err := c.ShouldBindJSON(&dto); err != nil {
 		c.Error(err)
 		errors.ReturnWithError(c, dtoerr.InvalidDTO)
 		return
 	}
+	token := auth.ResolvePasswordResetTokenReference(dto.ResetToken)
 
-	if err := auth.ResetPassword(userID, token, dto.Password, dto.Otp); err != nil {
+	if err := auth.ResetPassword(c, userID, token, dto.Password, dto.Otp); err != nil {
 		if err == auth.ErrInvalidResetToken {
 			errors.ReturnWithError(c, err)
 			return
@@ -162,16 +167,23 @@ func resetPassword(c *gin.Context) {
 			return
 		}
 
+		if err == auth.ErrPasswordTooWeak || err == auth.ErrUserOtpMissing || err == auth.ErrUserOtpRateLimited || err == auth.ErrResetNotRequested {
+			errors.ReturnWithError(c, err)
+			return
+		}
+
 		c.Error(err.Error())
 		panic(err)
 	}
+
+	auth.DeletePasswordResetTokenReference(dto.ResetToken)
+	c.JSON(200, gin.H{"message": "Password reset successfully"})
 }
 
 func changePassword(c *gin.Context) {
-	user := auth.Extract(c)
-	if user == nil {
-		c.Error(auth.ErrInvalidToken.Error())
-		errors.ReturnWithError(c, auth.ErrUnauthorized)
+	user, authErr := auth.RequireSessionBoundAuth(c)
+	if authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 
@@ -186,13 +198,13 @@ func changePassword(c *gin.Context) {
 		return
 	}
 
-	if err := auth.ChangePassword(user, dto.OldPassword, dto.NewPassword, dto.Otp); err != nil {
+	if err := auth.ChangePassword(c, user, dto.OldPassword, dto.NewPassword, dto.Otp); err != nil {
 		if err == auth.ErrInvalidCredentials {
 			errors.ReturnWithError(c, err)
 			return
 		}
 
-		if err == auth.ErrUserOtpWrong {
+		if err == auth.ErrUserOtpWrong || err == auth.ErrUserOtpMissing || err == auth.ErrUserOtpRateLimited || err == auth.ErrPasswordTooWeak {
 			errors.ReturnWithError(c, err)
 			return
 		}
@@ -205,8 +217,9 @@ func changePassword(c *gin.Context) {
 }
 
 func requestEmailChange(c *gin.Context) {
-	user, authorized := auth.AutoAuthorize(c)
-	if !authorized {
+	user, authErr := auth.RequireSessionBoundAuth(c)
+	if authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 
@@ -217,12 +230,12 @@ func requestEmailChange(c *gin.Context) {
 		return
 	}
 
-	if user.Email == emailChangeDto.NewEmail {
+	if isNoopEmailChange(user.Email, emailChangeDto.NewEmail) {
 		errors.ReturnWithError(c, auth.ErrEmailDidNotChange)
 		return
 	}
 
-	err := auth.InitiateEmailChange(user, emailChangeDto.NewEmail, emailChangeDto.Password, emailChangeDto.Otp)
+	err := auth.InitiateEmailChange(c, user, emailChangeDto.NewEmail, emailChangeDto.Password, emailChangeDto.Otp)
 	if err != nil {
 		if err == auth.ErrInvalidEmail {
 			errors.ReturnWithError(c, err)
@@ -232,11 +245,15 @@ func requestEmailChange(c *gin.Context) {
 			errors.ReturnWithError(c, err)
 			return
 		}
-		if err == auth.ErrUserOtpMissing {
+		if err == auth.ErrUserOtpMissing || err == auth.ErrUserOtpRateLimited {
 			errors.ReturnWithError(c, err)
 			return
 		}
 		if err == auth.ErrUserOtpWrong {
+			errors.ReturnWithError(c, err)
+			return
+		}
+		if err == auth.ErrEmailTaken {
 			errors.ReturnWithError(c, err)
 			return
 		}
@@ -249,18 +266,17 @@ func requestEmailChange(c *gin.Context) {
 		panic(err)
 	}
 
-	// save user
-	if res := db.DB.Save(user); res.Error != nil {
-		c.Error(res.Error)
-		errors.ReturnWithError(c, auth.ErrServer)
-		panic(res.Error)
-	}
 	c.JSON(200, gin.H{"message": "Email change token sent successfully"})
 }
 
+func isNoopEmailChange(currentEmail string, requestedEmail string) bool {
+	return auth.NormalizeEmail(currentEmail) == auth.NormalizeEmail(requestedEmail)
+}
+
 func setLocale(c *gin.Context) {
-	user, authorized := auth.AutoAuthorize(c)
-	if !authorized {
+	user, authErr := auth.RequireSessionBoundAuth(c)
+	if authErr != nil {
+		errors.ReturnWithError(c, authErr)
 		return
 	}
 
@@ -277,10 +293,12 @@ func setLocale(c *gin.Context) {
 		return
 	}
 
-	user.Locale = localeStr
-
-	if res := db.DB.Save(user); res.Error != nil {
-		c.Error(res.Error)
+	if err := user_service.WithLockedUser(c.Request.Context(), db.DB, user.ID, func(tx *gorm.DB, lockedUser *entities.User) error {
+		lockedUser.Locale = localeStr
+		user.Locale = localeStr
+		return user_service.SaveUserColumns(c.Request.Context(), tx, lockedUser, "Locale")
+	}); err != nil {
+		c.Error(err)
 		errors.ReturnWithError(c, auth.ErrServer)
 		return
 	}

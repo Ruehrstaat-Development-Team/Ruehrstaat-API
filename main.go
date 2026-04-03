@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"ruehrstaat-backend/api"
@@ -15,6 +18,8 @@ import (
 	"ruehrstaat-backend/logging"
 	"ruehrstaat-backend/services/moria"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
@@ -24,6 +29,7 @@ import (
 )
 
 var log = logging.Logger{Package: "main"}
+var useSentry = false
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -50,20 +56,37 @@ func main() {
 }
 
 func setup() {
+	sentryEnv := getSentryEnv()
+	sentryDSN := os.Getenv("SENTRY_DSN")
+	if sentryDSN == "" {
+		log.Println("No Sentry DSN provided. Sentry will not be initialized.")
+		useSentry = false
+	} else {
+		samplingRate := 1.0
+		if samplingRateStr := os.Getenv("SENTRY_SAMPLING_RATE"); samplingRateStr != "" {
+			if parsed, err := strconv.ParseFloat(samplingRateStr, 64); err == nil {
+				samplingRate = parsed
+			}
+		}
 
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:                os.Getenv("SENTRY_DSN"),
-		Environment:        getSentryEnv(),
-		Release:            fmt.Sprintf("v%s", constants.APP_VERSION),
-		EnableTracing:      true,
-		TracesSampleRate:   1.0,
-		ProfilesSampleRate: 1.0,
-	}); err != nil {
-		panic(err)
+		useSentry = true
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              sentryDSN,
+			Environment:      sentryEnv,
+			Release:          fmt.Sprintf("v%s", constants.APP_VERSION),
+			EnableTracing:    true,
+			TracesSampleRate: samplingRate,
+			SampleRate:       samplingRate,
+		}); err != nil {
+			panic(err)
+		}
 	}
 
 	discord.Initialize()
 	auth.InitializeWebauthn()
+	if err := logging.InitSecurityAuditLog(); err != nil {
+		log.Printf("Warning: Failed to initialize security audit log: %v", err)
+	}
 
 	db.Initialize()
 	cache.Initialize()
@@ -73,9 +96,16 @@ func setup() {
 	}
 
 	r := gin.New()
-	r.Use(sentrygin.New(sentrygin.Options{
-		Repanic: true,
-	}))
+	trustedProxies, trustedProxyErr := auth.TrustedProxiesFromEnv()
+	if trustedProxyErr != nil {
+		panic(trustedProxyErr)
+	}
+	if err := r.SetTrustedProxies(trustedProxies); err != nil {
+		panic(err)
+	}
+	if useSentry {
+		r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
+	}
 	r.Use(recovery())
 	r.Use(cors())
 	r.Use(gin.Logger())
@@ -117,9 +147,9 @@ func recovery() gin.HandlerFunc {
 				stackTraceString := string(stackTrace[:length])
 
 				// Use hub from the Gin context
-				if hub := sentrygin.GetHubFromContext(c); hub != nil {
+				if hub := sentrygin.GetHubFromContext(c); useSentry && hub != nil {
 					hub.WithScope(func(scope *sentry.Scope) {
-						scope.SetRequest(c.Request)
+						scope.SetRequest(sanitizeRequestForSentry(c.Request))
 						scope.SetLevel(sentry.LevelFatal) // Setting the level to fatal as it's a panic
 						scope.SetExtra("stacktrace", stackTraceString)
 
@@ -189,82 +219,78 @@ func errorLogger() gin.HandlerFunc {
 		c.Next()
 
 		statusCode := c.Writer.Status()
-		if statusCode >= 400 { // Capture all 4xx and 5xx errors
+		if statusCode >= 400 {
 			// Determine the error message
 			errorMessage := "Unknown error"
 			if len(c.Errors) > 0 {
 				errorMessage = c.Errors.String()
 			}
 
-			// Get the body content
-			responseBody := blw.body.String()
+			if shouldCaptureSentryEvent(statusCode) {
+				if hub := sentrygin.GetHubFromContext(c); useSentry && hub != nil {
+					hub.WithScope(func(scope *sentry.Scope) {
+						// Set the scope for the current context
+						scope.SetRequest(sanitizeRequestForSentry(c.Request))
+						scope.SetExtra("method", c.Request.Method)
+						scope.SetExtra("url", requestPathForSentry(c.Request))
+						scope.SetExtra("statusCode", statusCode)
+						scope.SetExtra("userAgent", c.Request.UserAgent())
+						scope.SetExtra("clientIP", c.ClientIP())
 
-			// Use hub from the Gin context
-			if hub := sentrygin.GetHubFromContext(c); hub != nil {
-				hub.WithScope(func(scope *sentry.Scope) {
-					// Set the scope for the current context
-					scope.SetRequest(c.Request)
-					scope.SetExtra("method", c.Request.Method)
-					scope.SetExtra("url", c.Request.URL.String())
-					scope.SetExtra("headers", c.Request.Header)
-					scope.SetExtra("statusCode", statusCode)
-					scope.SetExtra("userAgent", c.Request.UserAgent())
-					scope.SetExtra("clientIP", c.ClientIP())
-					scope.SetExtra("responseBody", responseBody)
+						if user := auth.Extract(c); user != nil {
+							scope.SetUser(sentry.User{ID: user.ID.String(), Email: user.Email, IPAddress: c.ClientIP(), Username: fmt.Sprintf("%s/%s", user.Nickname, user.CmdrName)})
+						}
 
-					// Determine the level of logging based on the status code
-					level := sentry.LevelInfo
-					if statusCode >= 500 {
+						level := sentry.LevelWarning
 						if gin.Mode() == gin.DebugMode {
 							level = sentry.LevelError
-						} else {
-							level = sentry.LevelWarning
 						}
-					} else if statusCode >= 400 {
-						if gin.Mode() == gin.DebugMode {
-							level = sentry.LevelInfo
-						} else {
-							level = sentry.LevelDebug
-						}
-					}
-					scope.SetLevel(level)
+						scope.SetLevel(level)
 
-					// Build and capture the message
-					message := fmt.Sprintf(
-						"Error %d: %s\nMethod: %s\nPath: %s\nClient IP: %s\nUser Agent: %s\nError Message: %s\nResponse Body: %s",
-						statusCode,
-						c.Request.URL.Path,
-						c.Request.Method,
-						c.Request.URL.String(),
-						c.ClientIP(),
-						c.Request.UserAgent(),
-						errorMessage,
-						responseBody,
-					)
-					hub.CaptureMessage(message)
-				})
-			} else {
-				// If hub is not present, fall back to standard logging
-				log.Printf("Error %d: %s\n", statusCode, errorMessage)
+						// Build and capture the message
+						message := fmt.Sprintf(
+							"Error %d: %s\nMethod: %s\nPath: %s\nClient IP: %s\nUser Agent: %s\nError Message: %s",
+							statusCode,
+							c.Request.URL.Path,
+							c.Request.Method,
+							requestPathForSentry(c.Request),
+							c.ClientIP(),
+							c.Request.UserAgent(),
+							errorMessage,
+						)
+						hub.CaptureMessage(message)
+					})
+					return
+				}
 			}
+
+			log.Printf("Error %d: %s\n", statusCode, errorMessage)
 		}
 	}
 }
 
+func shouldCaptureSentryEvent(statusCode int) bool {
+	return statusCode >= 500
+}
+
 func cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		corsAllowedOrigin := os.Getenv("CORS_ALLOWED_ORIGINS")
+		corsAllowedOrigin := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
 
 		if corsAllowedOrigin == "*" {
-			requestDomain := c.Request.Header.Get("Origin")
-			c.Writer.Header().Set("Access-Control-Allow-Origin", requestDomain)
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "false")
 		} else {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", corsAllowedOrigin)
+			allowedOrigins := auth.AllowedOriginsFromEnv("CORS_ALLOWED_ORIGINS")
+			if origin := c.Request.Header.Get("Origin"); auth.OriginAllowed(origin, allowedOrigins) {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Vary", "Origin")
+				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
 		}
 
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, PATCH, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Baggage, Accept, Sentry-Trace")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Baggage, Accept, Sentry-Trace, X-RST-User-Id, X-RST-Token, X-RST-Client-Id, X-RST-Client-Secret")
 		c.Writer.Header().Set("Access-Control-Expose-Headers", "Authorization, Content-Type")
 
 		//log.Printf("Request: %s %s", c.Request.Method, c.Request.URL.Path)
@@ -276,4 +302,61 @@ func cors() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func sanitizeRequestForSentry(r *http.Request) *http.Request {
+	if r == nil {
+		return nil
+	}
+
+	sanitized := r.Clone(r.Context())
+	sanitized.URL = cloneURLWithoutQuery(r.URL)
+	sanitized.RequestURI = requestPathForSentry(r)
+	sanitized.Header = sanitizeHeadersForSentry(r.Header)
+	sanitized.Body = io.NopCloser(strings.NewReader(""))
+	sanitized.GetBody = nil
+	sanitized.ContentLength = 0
+	sanitized.Form = nil
+	sanitized.PostForm = nil
+	sanitized.MultipartForm = nil
+
+	return sanitized
+}
+
+func sanitizeHeadersForSentry(headers http.Header) http.Header {
+	if headers == nil {
+		return nil
+	}
+
+	sanitized := headers.Clone()
+	for _, header := range []string{"Authorization", "Cookie", "Set-Cookie", "X-API-Key", "Proxy-Authorization", "X-RST-Token", "X-RST-Client-Secret", "X-RST-Client-Id", "X-RST-User-Id"} {
+		sanitized.Del(header)
+	}
+
+	return sanitized
+}
+
+func requestPathForSentry(r *http.Request) string {
+	if r == nil || r.URL == nil {
+		return ""
+	}
+
+	if r.URL.Path != "" {
+		return r.URL.Path
+	}
+
+	return "/"
+}
+
+func cloneURLWithoutQuery(u *url.URL) *url.URL {
+	if u == nil {
+		return nil
+	}
+
+	clone := *u
+	clone.RawQuery = ""
+	clone.ForceQuery = false
+	clone.Fragment = ""
+
+	return &clone
 }

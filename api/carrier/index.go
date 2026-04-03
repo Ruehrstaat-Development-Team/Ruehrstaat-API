@@ -57,8 +57,8 @@ func carrierTokenAuthMiddleware() gin.HandlerFunc {
 
 			c.Set("user", user)
 		} else {
-			current, authorized := auth.Authorize(c)
-			if !authorized {
+			current, authErr := auth.RequireSessionBoundAuth(c)
+			if authErr != nil {
 				errors.MiddlewareAbortWithError(c, carrier.ErrUnauthorized)
 				return
 			}
